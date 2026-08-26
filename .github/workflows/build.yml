@@ -61,6 +61,11 @@ jobs:
         run: |
           ./scripts/fetch_proot.sh app/src/main/assets/proot.tar
 
+      - name: Provision rootfs (tmux + openssh-server via qemu chroot)
+        run: |
+          chmod +x scripts/provision_rootfs.sh
+          ./scripts/provision_rootfs.sh app/src/main/assets/rootfs.tar.xz
+
       - name: Build arm64 APK (release, signed)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

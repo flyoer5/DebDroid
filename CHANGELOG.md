@@ -46,7 +46,7 @@ All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.m
 
 - targetSdk 28 为硬约束（API 29+ 禁止执行应用私有目录可执行文件）
 - 仅 arm64（v2 决策 T-04）
-- 首次 SSH 启用时若 rootfs 未预装 openssh-server，需联网 apt 安装
+- 镜像构建期已预装 tmux/openssh-server（CI qemu chroot）；若使用未预装的自制镜像，SSH 首启需联网 apt 安装
 
 ## [1.0.29] — v1.x 最终版（仅存档，不再维护）
 
