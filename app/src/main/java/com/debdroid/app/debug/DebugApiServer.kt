@@ -274,8 +274,15 @@ class DebugApiServer(
             Response.Status.lookup(code), "application/json; charset=utf-8", obj.toString()
         )
 
-    private fun readBody(session: IHTTPSession): String =
-        session.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+    /**
+     * 读取请求体。必须用 NanoHTTPD 的 parseBody——其内部预读缓冲会消费 body，
+     * 直接读 session.inputStream 会读到空/阻塞（GET 无 body 不受影响，POST/PUT 全挂）。
+     */
+    private fun readBody(session: IHTTPSession): String {
+        val files = HashMap<String, String>()
+        session.parseBody(files)
+        return files["postData"] ?: ""
+    }
 
     private fun settingsSnapshot(): AppSettings = runBlocking { settingsRepository.settings.first() }
 
