@@ -23,6 +23,8 @@ mkdir -p "$WORK/rfs"
 tar -xJf "$ROOTFS_XZ" -C "$WORK/rfs"
 
 # chroot 内 apt 需要 DNS（runner 的 resolv.conf 是 symlink，直接写静态文件更稳）
+# rootfs 的 /etc/resolv.conf 常为指向 /run 的绝对路径 symlink——先删链接再写普通文件
+sudo rm -f "$WORK/rfs/etc/resolv.conf"
 sudo sh -c "printf 'nameserver 8.8.8.8\\nnameserver 223.5.5.5\\n' > '$WORK/rfs/etc/resolv.conf'"
 
 echo "[provision] resolv.conf inside rootfs:"
