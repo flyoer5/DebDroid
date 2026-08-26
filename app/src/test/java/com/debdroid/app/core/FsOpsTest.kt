@@ -9,7 +9,7 @@ class FsOpsTest {
     @Test
     fun `buildPermissionString renders POSIX bits`() {
         assertEquals("drwxr-xr-x", FsOps.buildPermissionString(0b111101101, true, false))
-        assertEquals("-rw-r--r--", FsOps.buildPermissionString(0b100100100, false, false))
+        assertEquals("-rw-r--r--", FsOps.buildPermissionString(0b110100100, false, false))
         assertEquals("lrwxrwxrwx", FsOps.buildPermissionString(0b111111111, false, true))
         assertEquals("-rwx------", FsOps.buildPermissionString(0b111000000, false, false))
     }
