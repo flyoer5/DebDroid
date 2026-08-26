@@ -151,7 +151,10 @@ fun AppRoot(initialRoute: String? = null) {
             SettingsScreen(
                 settings = settings,
                 sshStatus = sshStatus,
-                onSettingsChange = { transform -> app.settingsRepository.update(transform) },
+                onSettingsChange = { transform ->
+                    // DataStore 写为挂起；设置屏每次变更异步落盘（FR-C3）
+                    scope.launch { app.settingsRepository.update(transform) }
+                },
                 onSshInstall = {
                     withContext(Dispatchers.IO) {
                         val result = app.sshManager.installBlocking(settings)

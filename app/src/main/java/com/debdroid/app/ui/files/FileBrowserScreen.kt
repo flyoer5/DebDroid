@@ -98,7 +98,10 @@ fun FileBrowserScreen(
     ) { granted -> if (granted) refreshTick++ }
 
     if (!hasPermission) {
-        permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        // 进入文件屏且未授权时请求一次（LaunchedEffect 防组合期重复触发）
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
     }
 
     // 目录 / 排序 / 刷新标记变化时加载；首次进入也触发
