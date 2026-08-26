@@ -15,7 +15,7 @@ import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
  *
  * 全部磁盘操作必须在 IO 线程调用（调用方负责），进度回调节流 ≤100 次/s（v1.0.17 教训）。
  */
-class RootfsInstaller(private val context: Context) {
+class RootfsInstaller(val context: Context) {
 
     /** rootfs 根目录（宿主视角）。 */
     fun rootfsDir(): File = File(context.filesDir, "rootfs")

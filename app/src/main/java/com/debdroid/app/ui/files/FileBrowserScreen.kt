@@ -252,6 +252,7 @@ fun FileBrowserScreen(
                                 },
                                 onBookmark = {
                                     if (f.isDir) {
+                                        val dir = File(f.path)
                                         bookmarkDirs = if (dir in bookmarkDirs) {
                                             toast = "已取消书签"
                                             bookmarkDirs - dir

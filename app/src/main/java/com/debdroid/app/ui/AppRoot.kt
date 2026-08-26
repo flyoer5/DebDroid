@@ -19,6 +19,7 @@ import com.debdroid.app.ui.settings.SettingsScreen
 import com.debdroid.app.ui.terminal.TerminalScreen
 import com.debdroid.app.ui.wizard.WizardScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -81,7 +82,10 @@ fun AppRoot(initialRoute: String? = null) {
                             settings.aptMirrorId == com.debdroid.app.prefs.AptMirror.OFFICIAL.id
                         ) {
                             app.settingsRepository.update {
-                                it.copy(aptMirrorId = app.rootfsInstaller.defaultMirrorForLocale().id)
+                                it.copy(
+                                    aptMirrorId = com.debdroid.app.rootfs.RootfsInstaller
+                                        .defaultMirrorForLocale().id
+                                )
                             }
                         }
                         app.rootfsInstaller.configure(

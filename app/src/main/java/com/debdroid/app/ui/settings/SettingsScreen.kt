@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     settings: AppSettings,
     sshStatus: SshStatus,
-    onSettingsChange: (AppSettings) -> AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
     onSshInstall: suspend () -> String?,
     onSshApply: suspend () -> Boolean,
     onSshStart: suspend () -> String?,

@@ -3,6 +3,7 @@ package com.debdroid.app.core
 import android.system.Os
 import android.system.OsConstants
 import java.io.File
+import java.util.Locale
 
 /**
  * 文件系统纯函数集（FR-F4 权限串、FR-F1 排序、大小格式化）。
@@ -98,6 +99,4 @@ object FsOps {
         copyRecursive(src, dst)
         src.deleteRecursively()
     }
-
-    private val locale = Locale.ROOT
 }
