@@ -56,7 +56,8 @@ fun WizardScreen(
     val scope = rememberCoroutineScope()
     var phase by remember { mutableStateOf(Phase.IDLE) }
     var progress by remember { mutableFloatStateOf(0f) }
-    var stage by remember { mutableStateOf(stringResource(R.string.wizard_installing)) }
+    val installingLabel = stringResource(R.string.wizard_installing)
+    var stage by remember { mutableStateOf(installingLabel) }
     var error by remember { mutableStateOf<String?>(null) }
     val scheme = MaterialTheme.colorScheme
 
