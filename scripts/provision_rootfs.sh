@@ -12,7 +12,8 @@ set -euo pipefail
 
 ROOTFS_XZ="$1"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+# chroot 内 root 创建的文件宿主侧归 root 所有，普通用户删不掉 → sudo 清理
+trap 'sudo rm -rf "$WORK"' EXIT
 
 echo "[provision] installing qemu-user-static + binfmt ..."
 sudo apt-get install -y -qq qemu-user-static binfmt-support >/dev/null
