@@ -62,6 +62,7 @@ fun SettingsScreen(
     onSshStart: suspend () -> String?,
     onSshStop: suspend () -> Unit,
     onResetRootfs: () -> Unit,
+    onExportDiagnostics: () -> Unit,
     onBack: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -375,6 +376,14 @@ fun SettingsScreen(
                     titleColor = MaterialTheme.colorScheme.error,
                     onClick = { resetDlg = true },
                 )
+            }
+            item {
+                OutlinedButton(
+                    onClick = onExportDiagnostics,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                ) {
+                    Text("导出诊断信息（复制并发送给开发者）")
+                }
             }
             item {
                 Row(

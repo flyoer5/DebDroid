@@ -34,9 +34,14 @@ sudo cat "$WORK/rfs/etc/resolv.conf"
 echo "[provision] apt install tmux + openssh-server (qemu) ..."
 sudo chroot "$WORK/rfs" /usr/bin/env -i \
   HOME=/root PATH=/usr/sbin:/usr/bin:/sbin:/bin DEBIAN_FRONTEND=noninteractive \
-  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends tmux openssh-server && rm -rf /var/lib/apt/lists/* && rm -f /etc/ssh/ssh_host_*'
+  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends tmux openssh-server && \
+    rm -rf /var/lib/apt/lists/* /etc/ssh/ssh_host_* && \
+    rm -rf /usr/share/doc /usr/share/man /usr/share/info /var/cache/apt/archives && \
+    find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name "en*" ! -name "locale.alias" -exec rm -rf {} +'
 
 sudo rm -f "$WORK/rfs/etc/resolv.conf"
+
+echo "[provision] rootfs 解压后大小: $(sudo du -sh "$WORK/rfs" | cut -f1)"
 
 echo "[provision] repacking rootfs.tar.xz ..."
 # chroot 内 root 创建的文件宿主侧归 root：sudo 打包，产物交还 runner 所有

@@ -4,18 +4,17 @@
     <string name="app_name">DebDroid</string>
 
     <!-- 向导 -->
-    <string name="wizard_tagline">在手机上运行完整的 Debian 13 (trixie) · 免 root</string>
+    <string name="wizard_tagline">Debian 13 · 免 root · 镜像内置</string>
     <string name="wizard_install">安装 Debian</string>
     <string name="wizard_enter">进入终端 ▸</string>
-    <string name="wizard_installing">解压内置镜像 rootfs.tar.xz</string>
-    <string name="wizard_configuring">配置 Debian 13 (trixie)</string>
-    <string name="wizard_ready">写入 proot 启动环境</string>
+    <string name="wizard_installing">解压内置镜像</string>
+    <string name="wizard_configuring">写入 apt 源与 DNS</string>
+    <string name="wizard_ready">配置 proot 启动环境</string>
     <string name="wizard_done_title">✓ 安装完成</string>
-    <string name="wizard_done_desc">Debian 13 (trixie) 已就绪 · proot 免 root 运行</string>
+    <string name="wizard_done_desc">Debian 13 已就绪</string>
     <string name="wizard_error_title">⚠ 安装失败</string>
-    <string name="wizard_retry">重试安装</string>
-    <string name="wizard_feature_offline">🔒 无需 root · 📦 镜像内置零下载 · ✈️ 离线安装</string>
-    <string name="wizard_need_space">约 1–3 分钟 · 需约 400MB 空闲空间 · 全程离线</string>
+    <string name="wizard_retry">重试</string>
+    <string name="wizard_need_space">需约 400MB 空闲空间 · 全程离线</string>
 
     <!-- 终端 -->
     <string name="term_new_session">新建会话</string>

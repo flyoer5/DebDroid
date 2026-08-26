@@ -56,7 +56,7 @@ fun WizardScreen(
     val scope = rememberCoroutineScope()
     var phase by remember { mutableStateOf(Phase.IDLE) }
     var progress by remember { mutableFloatStateOf(0f) }
-    var stage by remember { mutableStateOf("解压内置镜像 rootfs.tar.xz") }
+    var stage by remember { mutableStateOf(stringResource(R.string.wizard_installing)) }
     var error by remember { mutableStateOf<String?>(null) }
     val scheme = MaterialTheme.colorScheme
 
@@ -203,7 +203,7 @@ fun WizardScreen(
 
         Spacer(Modifier.height(16.dp))
         Text(
-            stringResource(R.string.wizard_feature_offline),
+            stringResource(R.string.wizard_need_space),
             style = MaterialTheme.typography.bodySmall,
             color = scheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

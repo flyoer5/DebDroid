@@ -39,6 +39,20 @@ class SessionManager(
     private val sessionMutex = Mutex()
     private var counter = 0
 
+    /** 最近日志环形缓冲（诊断导出用，上限 [maxLogLines]）。 */
+    private val recentLogs = ArrayDeque<String>()
+
+    fun recentLogCount(): Int = synchronized(recentLogs) { recentLogs.size }
+
+    fun recentLogSnapshot(): List<String> = synchronized(recentLogs) { recentLogs.toList() }
+
+    private fun logLine(line: String) {
+        synchronized(recentLogs) {
+            while (recentLogs.size >= maxLogLines) recentLogs.removeFirst()
+            recentLogs.addLast(line)
+        }
+    }
+
     /**
      * 创建首个会话（若尚无）。返回是否真的创建了。
      * 供：首次进入终端（FR-W3）、服务重启自动恢复（FR-S4）。
@@ -123,7 +137,11 @@ class SessionManager(
         // 记录 transcript 尾部便于从 logcat 诊断 proot 失败原因（FR-S5 辅助）
         runCatching {
             val text = finishedSession.emulator?.mScreen?.getTranscriptText()
-            if (!text.isNullOrBlank()) Log.i(TAG, "session finished tail:\n" + text.takeLast(1200))
+            if (!text.isNullOrBlank()) {
+                val tail = text.takeLast(1200)
+                logLine("[session-finished] tail:\n" + tail)
+                Log.i(TAG, "session finished tail:\n" + tail)
+            }
         }
         runCatching { finishedSession.finishIfRunning() }
         _sessions.value = _sessions.value.filter { it !== finishedSession }
@@ -139,15 +157,22 @@ class SessionManager(
     override fun onTerminalCursorStateChange(state: Boolean) {}
     override fun getTerminalCursorStyle(): Int = 1 // TERMUX_CURSOR_STYLE_BLINK_BLOCK
 
-    override fun logError(tag: String, message: String) { Log.e(tag, message) }
-    override fun logWarn(tag: String, message: String) { Log.w(tag, message) }
-    override fun logInfo(tag: String, message: String) { Log.i(tag, message) }
-    override fun logDebug(tag: String, message: String) { Log.d(tag, message) }
-    override fun logVerbose(tag: String, message: String) { Log.v(tag, message) }
-    override fun logStackTraceWithMessage(tag: String, message: String, e: Exception?) { Log.e(tag, message, e) }
-    override fun logStackTrace(tag: String, e: Exception?) { Log.e(tag, "", e) }
+    override fun logError(tag: String, message: String) { logLine("[$tag] $message"); Log.e(tag, message) }
+    override fun logWarn(tag: String, message: String) { logLine("[$tag] $message"); Log.w(tag, message) }
+    override fun logInfo(tag: String, message: String) { logLine("[$tag] $message"); Log.i(tag, message) }
+    override fun logDebug(tag: String, message: String) { logLine("[$tag] $message"); Log.d(tag, message) }
+    override fun logVerbose(tag: String, message: String) { logLine("[$tag] $message"); Log.v(tag, message) }
+    override fun logStackTraceWithMessage(tag: String, message: String, e: Exception?) {
+        logLine("[$tag] $message ${e?.stackTraceToString() ?: ""}")
+        Log.e(tag, message, e)
+    }
+    override fun logStackTrace(tag: String, e: Exception?) {
+        logLine("[$tag] ${e?.stackTraceToString() ?: "(null)"}")
+        Log.e(tag, "", e)
+    }
 
     companion object {
         private const val TAG = "DebDroidSession"
+        private const val maxLogLines = 300
     }
 }

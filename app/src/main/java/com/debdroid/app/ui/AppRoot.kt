@@ -1,5 +1,9 @@
 package com.debdroid.app.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -180,8 +184,39 @@ fun AppRoot(initialRoute: String? = null) {
                     app.sessionManager.closeAll()
                     screen = Screen.WIZARD
                 },
+                onExportDiagnostics = { exportDiagnostics(context, settings, app, sshStatus) },
                 onBack = { screen = Screen.TERMINAL },
             )
         }
+    }
+}
+
+/**
+ * 生成诊断文本 → 复制到剪贴板 + 调起系统分享（协作调试通道 A）。
+ * 纯应用层状态，不依赖 SSH；用户粘贴给开发者即可定位崩溃/启动/配置问题。
+ */
+private fun exportDiagnostics(
+    context: Context,
+    settings: AppSettings,
+    app: DebDroidApp,
+    sshStatus: com.debdroid.app.ssh.SshStatus,
+) {
+    val text = runCatching {
+        com.debdroid.app.diag.Diagnostics.collect(
+            context, settings, app.rootfsInstaller, sshStatus, app.sessionManager
+        )
+    }.getOrElse { "诊断收集失败: $it" }
+
+    runCatching {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("DebDroid 诊断信息", text))
+    }
+    runCatching {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "DebDroid 诊断信息 v${com.debdroid.app.BuildConfig.VERSION_NAME}")
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        context.startActivity(Intent.createChooser(intent, "分享诊断信息"))
     }
 }

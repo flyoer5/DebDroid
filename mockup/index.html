@@ -193,15 +193,15 @@ body { background:#05070a; min-height:100vh; display:flex; justify-content:cente
         </g>
       </svg>
       <div class="t-headline mono" style="letter-spacing:.04em">DebDroid</div>
-      <div class="t-caption">在手机上运行完整的 Debian 13 (trixie) · 免 root</div>
+      <div class="t-caption">Debian 13 · 免 root · 镜像内置</div>
       <div class="wizard-steps"><span class="wstep done" id="ws1"></span><span class="wstep now" id="ws2"></span><span class="wstep" id="ws3"></span></div>
 
       <!-- 安装中 -->
       <div id="wiz-install" style="width:100%">
         <div class="card" style="width:100%;margin:0;text-align:left">
-          <div class="t-label" style="display:flex;justify-content:space-between"><span id="wiz-step-label">解压内置镜像 rootfs.tar.xz</span><span id="wiz-pct" class="mono">0%</span></div>
+          <div class="t-label" style="display:flex;justify-content:space-between"><span id="wiz-step-label">解压内置镜像</span><span id="wiz-pct" class="mono">0%</span></div>
           <div class="progress-track"><div class="progress-fill" id="wiz-bar"></div></div>
-          <div class="t-caption" style="margin-top:var(--sp-2)" id="wiz-note">约 1–3 分钟 · 需约 400MB 空闲空间 · 全程离线</div>
+          <div class="t-caption" style="margin-top:var(--sp-2)" id="wiz-note">需约 400MB 空闲空间 · 全程离线</div>
         </div>
         <button class="btn btn-filled btn-block" onclick="startInstall()">安装 Debian</button>
         <div class="t-caption" style="text-align:center;margin-top:var(--sp-2)"><a href="javascript:failInstall()" style="color:var(--on-surface-variant)">模拟安装失败（错误态演示）</a></div>
@@ -221,11 +221,11 @@ body { background:#05070a; min-height:100vh; display:flex; justify-content:cente
       <div id="wiz-done" style="display:none;width:100%">
         <div class="card" style="width:100%;margin:0;text-align:left">
           <div class="t-label" style="color:var(--tertiary)">✓ 安装完成</div>
-          <div class="t-caption" style="margin-top:var(--sp-1)">Debian 13 (trixie) 已就绪 · proot 免 root · apt 源：清华 TUNA（中文环境默认）</div>
+          <div class="t-caption" style="margin-top:var(--sp-1)">Debian 13 已就绪</div>
         </div>
         <button class="btn btn-filled btn-block" onclick="go('scr-terminal')">进入终端 ▸</button>
       </div>
-      <div class="t-caption" style="margin-top:var(--sp-4)">🔒 无需 root · 📦 镜像内置零下载 · ✈️ 离线安装</div>
+      <div class="t-caption" style="margin-top:var(--sp-4)">需约 400MB 空闲空间 · 全程离线</div>
     </div>
   </div>
 
@@ -523,7 +523,7 @@ function sw(row){row.querySelector('.switch').classList.toggle('on');}
 
 /* ═══════ 向导（FR-W1~W4） ═══════ */
 let instTimer=null;
-const wizSteps=[['解压内置镜像 rootfs.tar.xz',0,40,'约 1–3 分钟 · 需约 400MB 空闲空间'],['配置 Debian 13 (trixie)',40,85,'写入 apt 源与 resolv.conf'],['写入 proot 启动环境',85,100,'准备终端会话']];
+const wizSteps=[['解压内置镜像',0,40,'约 1–3 分钟 · 需约 400MB 空闲空间'],['配置 Debian 13 (trixie)',40,85,'写入 apt 源与 resolv.conf'],['写入 proot 启动环境',85,100,'准备终端会话']];
 function startInstall(){if(instTimer)return;document.getElementById('wiz-error').style.display='none';document.getElementById('wiz-install').style.display='block';
   const bar=document.getElementById('wiz-bar'),pct=document.getElementById('wiz-pct'),note=document.getElementById('wiz-note'),lab=document.getElementById('wiz-step-label');
   let p=0;instTimer=setInterval(()=>{p+=2+Math.random()*3;if(p>=100){p=100;clearInterval(instTimer);instTimer=null;bar.style.width='100%';pct.textContent='100%';
