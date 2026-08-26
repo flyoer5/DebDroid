@@ -369,6 +369,24 @@ fun SettingsScreen(
                     onClick = { dnsDlg = true },
                 )
             }
+            item { SectionTitle("调试") }
+            item {
+                SettingsRow(
+                    title = "调试接口",
+                    subtitle = if (settings.debugApiEnabled) {
+                        val ip = com.debdroid.app.DebDroidApp.instance.sshManager.localIpAddress()
+                        "运行中 · http://${ip ?: "<本机IP>"}:8710/api/ping"
+                    } else {
+                        "局域网 HTTP 接口（网络 adb 调试用），默认关闭"
+                    },
+                    trailing = {
+                        Switch(
+                            checked = settings.debugApiEnabled,
+                            onCheckedChange = { on -> change { it.copy(debugApiEnabled = on) } },
+                        )
+                    },
+                )
+            }
             item {
                 SettingsRow(
                     title = stringResource(R.string.set_reset),

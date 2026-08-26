@@ -106,8 +106,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.commons.compress) // rootfs.tar.xz 解压
     implementation(libs.xz)
+    implementation(libs.nanohttpd) // 调试 HTTP 接口（DebugApiServer）
 
     testImplementation(libs.junit)
+    testImplementation(libs.json) // DebugApiServer.applyJson 单测（org.json 本地 JVM 无内置）
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

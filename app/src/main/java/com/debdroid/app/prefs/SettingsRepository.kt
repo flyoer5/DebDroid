@@ -44,6 +44,7 @@ class SettingsRepository(private val context: Context) {
         val SSH_AUTHORIZED_KEYS = stringPreferencesKey("ssh_authorized_keys")
         val SSH_AUTOSTART = booleanPreferencesKey("ssh_autostart")
         val FILE_BOOKMARKS = stringPreferencesKey("file_bookmarks")
+        val DEBUG_API_ENABLED = booleanPreferencesKey("debug_api_enabled")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { it.toAppSettings() }
@@ -75,6 +76,7 @@ class SettingsRepository(private val context: Context) {
         sshAuthorizedKeys = this[Keys.SSH_AUTHORIZED_KEYS] ?: "",
         sshAutostart = this[Keys.SSH_AUTOSTART] ?: true,
         fileBookmarks = this[Keys.FILE_BOOKMARKS] ?: "",
+        debugApiEnabled = this[Keys.DEBUG_API_ENABLED] ?: false,
     )
 
     private fun androidx.datastore.preferences.core.MutablePreferences.writeSettings(s: AppSettings) {
@@ -99,5 +101,6 @@ class SettingsRepository(private val context: Context) {
         this[Keys.SSH_AUTHORIZED_KEYS] = s.sshAuthorizedKeys
         this[Keys.SSH_AUTOSTART] = s.sshAutostart
         this[Keys.FILE_BOOKMARKS] = s.fileBookmarks
+        this[Keys.DEBUG_API_ENABLED] = s.debugApiEnabled
     }
 }

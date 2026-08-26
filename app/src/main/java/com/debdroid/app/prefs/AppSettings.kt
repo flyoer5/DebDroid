@@ -26,6 +26,7 @@ data class AppSettings(
     val sshAuthorizedKeys: String = "",         // 多行公钥
     val sshAutostart: Boolean = true,
     val fileBookmarks: String = "",             // 序列化书签
+    val debugApiEnabled: Boolean = false,       // 调试 HTTP 接口（默认关，局域网可达）
 )
 
 enum class ThemeMode { FOLLOW_SYSTEM, DARK, LIGHT }

@@ -21,6 +21,9 @@ class DebDroidApp : Application() {
     lateinit var sshManager: SshManager
     lateinit var sessionManager: SessionManager
 
+    private var debugApiScope: kotlinx.coroutines.CoroutineScope? = null
+    private var debugApi: com.debdroid.app.debug.DebugApiServer? = null
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -30,6 +33,7 @@ class DebDroidApp : Application() {
         sshManager = SshManager(this, rootfsInstaller)
         sessionManager = SessionManager(rootfsInstaller, sshManager)
         sshManager.refreshStatus() // 进程重启后恢复 SSH 状态展示（FR-H2）
+        watchDebugApi() // 调试接口随设置开关启停（默认关）
     }
 
     /**
@@ -45,6 +49,33 @@ class DebDroidApp : Application() {
                 f.appendText("=== $ts ===\n$throwable\n${throwable.stackTraceToString()}\n")
             }
             prev?.uncaughtException(thread, throwable)
+        }
+    }
+
+    /**
+     * 监听设置开关启停调试 HTTP 接口（默认关闭；局域网可达，端口 8710）。
+     * 进程存活期间有效；重启后按设置自动恢复。
+     */
+    private fun watchDebugApi() {
+        val scope = kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+        )
+        debugApiScope = scope
+        scope.launch {
+            settingsRepository.settings.collect { s ->
+                val enabled = s.debugApiEnabled
+                val server = debugApi
+                if (enabled && server == null) {
+                    runCatching {
+                        com.debdroid.app.debug.DebugApiServer(
+                            this@DebDroidApp, settingsRepository, rootfsInstaller, sessionManager, sshManager
+                        ).also { it.start() }.also { debugApi = it }
+                    }.onFailure { android.util.Log.e(TAG, "debug api start failed", it) }
+                } else if (!enabled && server != null) {
+                    runCatching { server.stop() }
+                    debugApi = null
+                }
+            }
         }
     }
 
