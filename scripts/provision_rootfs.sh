@@ -22,8 +22,8 @@ echo "[provision] extracting rootfs ..."
 mkdir -p "$WORK/rfs"
 tar -xJf "$ROOTFS_XZ" -C "$WORK/rfs"
 
-# chroot 内 apt 需要 DNS
-sudo cp /etc/resolv.conf "$WORK/rfs/etc/resolv.conf"
+# chroot 内 apt 需要 DNS（runner 的 resolv.conf 是 symlink，直接写静态文件更稳）
+sudo sh -c "printf 'nameserver 8.8.8.8\\nnameserver 223.5.5.5\\n' > '$WORK/rfs/etc/resolv.conf'"
 
 echo "[provision] apt install tmux + openssh-server (qemu) ..."
 sudo chroot "$WORK/rfs" /usr/bin/env -i \
