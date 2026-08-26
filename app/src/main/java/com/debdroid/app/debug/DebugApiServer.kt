@@ -349,5 +349,6 @@ internal fun AppSettings.applyJson(obj: JSONObject): AppSettings {
     if (obj.has("sshPassword")) s = s.copy(sshPassword = obj.getString("sshPassword"))
     if (obj.has("sshAuthorizedKeys")) s = s.copy(sshAuthorizedKeys = obj.getString("sshAuthorizedKeys"))
     if (obj.has("sshAutostart")) s = s.copy(sshAutostart = obj.getBoolean("sshAutostart"))
+    if (obj.has("debugApiEnabled")) s = s.copy(debugApiEnabled = obj.getBoolean("debugApiEnabled"))
     return s
 }
