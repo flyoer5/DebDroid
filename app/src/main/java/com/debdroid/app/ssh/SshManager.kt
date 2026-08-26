@@ -71,7 +71,11 @@ class SshManager(
     /** 按设置写 sshd_config / authorized_keys / 密码 / host keys（FR-H3）。 */
     fun applyConfigBlocking(settings: AppSettings): ProotLauncher.CommandResult {
         val rootfs = rootfsInstaller.rootfsDir()
-        val listenAddr = if (settings.sshListenAll) "0.0.0.0" else "127.0.0.1"
+        // 仅局域网=绑定手机 WiFi IP（文档 architecture.md §3.5）；127.0.0.1 会谁都连不上（真机调试定位）
+        val listenAddr = when {
+            settings.sshListenAll -> "0.0.0.0"
+            else -> localIpAddress() ?: "0.0.0.0"
+        }
 
         val sshCfg = File(rootfs, "etc/ssh/sshd_config")
         sshCfg.parentFile?.mkdirs()
