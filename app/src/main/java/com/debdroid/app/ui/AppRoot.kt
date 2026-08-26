@@ -155,9 +155,9 @@ fun AppRoot(initialRoute: String? = null) {
             SettingsScreen(
                 settings = settings,
                 sshStatus = sshStatus,
-                onSettingsChange = { transform ->
-                    // DataStore 写为挂起；设置屏每次变更异步落盘（FR-C3）
-                    scope.launch { app.settingsRepository.update(transform) }
+                onSettingsChange = { transformFn ->
+                    // DataStore 写为挂起；设置屏每次变更把转换函数交回上层异步落盘（FR-C3）
+                    scope.launch { app.settingsRepository.update(transformFn) }
                 },
                 onSshInstall = {
                     withContext(Dispatchers.IO) {

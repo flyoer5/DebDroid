@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     settings: AppSettings,
     sshStatus: SshStatus,
-    onSettingsChange: (AppSettings) -> Unit,
+    onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
     onSshInstall: suspend () -> String?,
     onSshApply: suspend () -> Boolean,
     onSshStart: suspend () -> String?,
@@ -79,7 +79,7 @@ fun SettingsScreen(
     var dnsDlg by remember { mutableStateOf(false) }
     var resetDlg by remember { mutableStateOf(false) }
 
-    fun change(transform: (AppSettings) -> Unit) {
+    fun change(transform: (AppSettings) -> AppSettings) {
         onSettingsChange(transform)
         toast = "设置已保存 ✓"
     }
