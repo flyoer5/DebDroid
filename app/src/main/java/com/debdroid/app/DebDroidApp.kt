@@ -9,6 +9,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 /**
  * 应用入口：持有全部单例仓库/管理器，经 [instance] 供 Compose 与后台组件取用。
@@ -82,5 +83,6 @@ class DebDroidApp : Application() {
     companion object {
         lateinit var instance: DebDroidApp
             private set
+        private const val TAG = "DebDroidApp"
     }
 }

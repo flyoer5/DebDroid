@@ -48,6 +48,8 @@ class DebugApiServer(
 
     companion object {
         const val DEBUG_API_PORT = 8710
+        private const val MAX_SCREEN_CHARS = 32 * 1024
+        private const val MAX_FILE_READ = 256 * 1024
     }
 
     /** 安装进度（跨请求可见）。 */
@@ -319,11 +321,6 @@ class DebugApiServer(
     // ------------------------------------------------------------------
     // JSON → AppSettings 部分更新见文件级 applyJson（可单测）
     // ------------------------------------------------------------------
-
-    companion object {
-        private const val MAX_SCREEN_CHARS = 32 * 1024
-        private const val MAX_FILE_READ = 256 * 1024
-    }
 }
 
 /**
