@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Activity 基础主题：仅做窗口骨架，实际配色全部由 Compose MaterialTheme 接管 -->
+<resources>
+    <style name="Theme.DebDroid" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 默认语言为中文（产品面向中文用户）；英文见 values-en/strings.xml -->
+<resources>
+    <string name="app_name">DebDroid</string>
+
+    <!-- 向导 -->
+    <string name="wizard_tagline">在手机上运行完整的 Debian 13 (trixie) · 免 root</string>
+    <string name="wizard_install">安装 Debian</string>
+    <string name="wizard_enter">进入终端 ▸</string>
+    <string name="wizard_installing">解压内置镜像 rootfs.tar.xz</string>
+    <string name="wizard_configuring">配置 Debian 13 (trixie)</string>
+    <string name="wizard_ready">写入 proot 启动环境</string>
+    <string name="wizard_done_title">✓ 安装完成</string>
+    <string name="wizard_done_desc">Debian 13 (trixie) 已就绪 · proot 免 root 运行</string>
+    <string name="wizard_error_title">⚠ 安装失败</string>
+    <string name="wizard_retry">重试安装</string>
+    <string name="wizard_feature_offline">🔒 无需 root · 📦 镜像内置零下载 · ✈️ 离线安装</string>
+    <string name="wizard_need_space">约 1–3 分钟 · 需约 400MB 空闲空间 · 全程离线</string>
+
+    <!-- 终端 -->
+    <string name="term_new_session">新建会话</string>
+    <string name="term_close_all">全部关闭</string>
+    <string name="term_start_failed">启动失败：%1$s</string>
+    <string name="term_no_sessions">暂无会话</string>
+    <string name="session_tmux">tmux</string>
+
+    <!-- 终端屏补充 -->
+    <string name="sessions_title">会话</string>
+    <string name="session_close">关闭会话</string>
+    <string name="session_default_name">会话 %1$d</string>
+    <string name="session_new">新建会话</string>
+    <string name="toggle_keyboard">键盘</string>
+    <string name="settings_title">设置</string>
+    <string name="no_sessions">暂无会话</string>
+    <string name="start_session">开始会话</string>
+    <string name="terminal_menu">菜单</string>
+    <string name="terminal_new">新会话</string>
+    <string name="terminal_copy_all">复制全部输出</string>
+    <string name="terminal_paste">粘贴</string>
+    <string name="terminal_share">分享输出</string>
+    <string name="terminal_reset">重置屏幕</string>
+
+    <!-- 通知 -->
+    <string name="notification_channel">DebDroid 保活服务</string>
+    <string name="notification_title">DebDroid 正在运行</string>
+    <string name="notification_sessions">%1$d %2$s</string>
+    <string name="notification_sessions_unit">个会话</string>
+
+    <!-- 导航 -->
+    <string name="nav_files">文件管理器</string>
+    <string name="nav_editor">文本编辑器</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- 文件管理器 -->
+    <string name="fs_empty">此文件夹为空</string>
+    <string name="fs_delete_confirm_title">删除所选文件？</string>
+    <string name="fs_delete_confirm_body">将永久删除所选文件，此操作不可撤销。</string>
+    <string name="fs_delete">删除</string>
+    <string name="fs_cancel">取消</string>
+    <string name="fs_select_all">全选</string>
+    <string name="fs_copy_to_other">复制到对侧</string>
+    <string name="fs_move_to_other">移动到对侧</string>
+
+    <!-- 编辑器 -->
+    <string name="ed_unsaved_title">有未保存的修改</string>
+    <string name="ed_unsaved_body">离开将丢失对 %1$s 的修改。</string>
+    <string name="ed_save_and_leave">保存并离开</string>
+    <string name="ed_discard">不保存</string>
+    <string name="ed_saved">已保存</string>
+    <string name="ed_readonly">只读</string>
+
+    <!-- 设置 -->
+    <string name="set_appearance">外观</string>
+    <string name="set_theme_mode">主题模式</string>
+    <string name="set_terminal">终端</string>
+    <string name="set_ssh">SSH 服务器</string>
+    <string name="set_keepalive">保活</string>
+    <string name="set_system">系统</string>
+    <string name="set_mirror">apt 镜像源</string>
+    <string name="set_reset">恢复 Debian 出厂状态</string>
+    <string name="set_version">版本</string>
+    <string name="set_mirror_switched">镜像源已切换，sources.list 已重写 ✓</string>
+    <string name="ssh_running">运行中 · ssh root@%1$s -p %2$d</string>
+    <string name="ssh_failed">启动失败</string>
+    <string name="ssh_enabled">启用 SSH</string>
+    <string name="ssh_port">端口</string>
+    <string name="ssh_listen">监听地址</string>
+    <string name="ssh_password_login">密码登录</string>
+    <string name="ssh_pubkey">公钥授权</string>
+    <string name="ssh_autostart">开机自动启动 SSH</string>
+    <string name="ssh_not_installed_hint">rootfs 未预装 openssh-server，请先在设置中安装</string>
+    <string name="ssh_start_failed">SSH 启动失败，请查看输出</string>
+    <string name="ssh_no_network">需要网络安装 openssh-server（当前无可用网络）</string>
+    <string name="keep_foreground">前台服务</string>
+    <string name="keep_wakelock">唤醒锁</string>
+    <string name="keep_battery">电池优化白名单</string>
+    <string name="keep_boot">开机自启</string>
+    <string name="keep_restore">自动恢复会话</string>
+    <string name="toast_settings_saved">设置已保存 ✓</string>
+</resources>

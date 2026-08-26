@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<!-- DebDroid v2 · 交互模拟页（重做版）—— 对应 docs/requirements.md §4 FR 与 §6 界面规格 -->
+<!-- 覆盖：FR-W1~W4, T1~T5, S1~S5, F1~F5, E1~E4, H1~H3, K1~K3, C1~C4（除纯后端 Q 类） -->
+<!-- 交互：屏切换 #wizard|#terminal|#files|#editor|#settings · 抽屉 · 对话框 · 错误/空态演示 · 配色跨屏联动 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DebDroid v2 · 交互模拟</title>
+<style>
+/* ═══════ 设计令牌：科技深色主题（电光蓝 #0A84FF + 终端绿 #3FB950） ═══════ */
+:root {
+  --primary:#0A84FF; --on-primary:#fff; --primary-container:#0A2E4D; --on-primary-container:#CFE8FF;
+  --tertiary:#3FB950; --warning:#D29922; --error:#F85149;
+  --surface:#101418; --surface-container:#171D24; --surface-container-high:#1F2830;
+  --on-surface:#E6EDF3; --on-surface-variant:#9AA7B4; --outline:#6E7B88; --outline-variant:#2A3440;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px; --sp-8:32px;
+  --r-md:12px; --r-lg:16px; --r-full:999px;
+  --mono:'JetBrains Mono','Cascadia Code',Consolas,'Courier New',monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#05070a; min-height:100vh; display:flex; justify-content:center; align-items:flex-start; padding:var(--sp-6); font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif; }
+.phone { width:390px; height:844px; background:var(--surface); border-radius:32px; border:8px solid #000; overflow:hidden; position:relative; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,.6); }
+.statusbar { height:32px; flex:none; display:flex; justify-content:space-between; align-items:center; padding:0 var(--sp-4); font-size:12px; font-weight:600; color:var(--on-surface); }
+.screen { flex:1; overflow-y:auto; position:relative; display:none; flex-direction:column; }
+.screen.active { display:flex; }
+
+/* 字阶 */
+.t-headline{font-size:24px;font-weight:700;line-height:1.25;color:var(--on-surface)}
+.t-title{font-size:18px;font-weight:600;line-height:1.3;color:var(--on-surface)}
+.t-body{font-size:15px;line-height:1.5;color:var(--on-surface)}
+.t-label{font-size:13px;font-weight:600;color:var(--on-surface)}
+.t-caption{font-size:12px;color:var(--on-surface-variant)}
+.mono{font-family:var(--mono)}
+.dim{color:var(--on-surface-variant)}
+
+/* 顶栏 */
+.appbar { flex:none; height:56px; display:flex; align-items:center; gap:var(--sp-2); padding:0 var(--sp-2); background:var(--surface); border-bottom:1px solid var(--outline-variant); }
+.appbar .icon-btn{width:44px;height:44px;border:none;background:transparent;border-radius:var(--r-full);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--on-surface)}
+.appbar .icon-btn:hover{background:var(--surface-container-high)}
+.appbar .t-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 按钮/开关/chip */
+.btn{height:44px;padding:0 var(--sp-6);border-radius:var(--r-full);border:none;font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2)}
+.btn-filled{background:var(--primary);color:var(--on-primary)}
+.btn-tonal{background:var(--primary-container);color:var(--on-primary-container)}
+.btn-danger{background:transparent;color:var(--error);border:1px solid var(--error)}
+.btn-text{background:transparent;color:var(--primary);padding:0 var(--sp-3)}
+.btn-block{width:calc(100% - var(--sp-8)*2);margin:var(--sp-4) var(--sp-8)}
+.btn:disabled{opacity:.4;cursor:default}
+.chip{height:32px;padding:0 var(--sp-3);flex:none;border:1px solid var(--outline-variant);border-radius:var(--r-full);background:transparent;font-size:13px;color:var(--on-surface);display:inline-flex;align-items:center;cursor:pointer;gap:var(--sp-1)}
+.chip.active{background:var(--primary-container);color:var(--on-primary-container);border-color:transparent;font-weight:600}
+.switch-row{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);cursor:pointer}
+.switch-row .grow{flex:1;min-width:0}
+.switch{width:48px;height:28px;flex:none;border-radius:var(--r-full);background:var(--outline-variant);position:relative;transition:background .15s}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .15s}
+.switch.on{background:var(--primary)}
+.switch.on::after{left:23px}
+
+/* 列表/卡片/分隔 */
+.list-item{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);cursor:pointer}
+.list-item:hover{background:var(--surface-container-high)}
+.list-item .grow{flex:1;min-width:0}
+.list-item .meta{text-align:right;flex:none;font-size:12px;color:var(--on-surface-variant)}
+.divider{height:1px;background:var(--outline-variant);margin:var(--sp-1) var(--sp-4)}
+.section-header{display:flex;justify-content:space-between;align-items:baseline;padding:var(--sp-4) var(--sp-4) var(--sp-2)}
+.section-header .t-overline{color:var(--tertiary)}
+.card{background:var(--surface-container);border-radius:var(--r-lg);padding:var(--sp-4);margin:var(--sp-2) var(--sp-4)}
+.badge{font-size:10px;padding:1px 6px;border-radius:var(--r-full);background:var(--primary-container);color:var(--on-primary-container);font-weight:600}
+.badge.warn{background:var(--warning);color:#000}
+.badge.err{background:var(--error);color:#fff}
+.badge.ok{background:var(--tertiary);color:#000}
+
+/* 空态/错误卡 */
+.empty-state{text-align:center;padding:var(--sp-8);color:var(--on-surface-variant)}
+.empty-state .icon{font-size:44px;margin-bottom:var(--sp-3)}
+.error-card{background:var(--surface-container);border:1px solid var(--error);border-radius:var(--r-lg);padding:var(--sp-4);margin:var(--sp-2) var(--sp-4)}
+.error-card .err-title{color:var(--error);font-weight:600;font-size:14px;display:flex;gap:var(--sp-2);align-items:center}
+
+/* 浮层：toast / 弹层 / 面板 */
+.toast{position:absolute;left:var(--sp-4);right:var(--sp-4);bottom:24px;background:var(--on-surface);color:var(--surface);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-4);font-size:14px;z-index:90;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.err{background:var(--error);color:#fff}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:40;display:none}
+.scrim.open{display:block}
+.drawer{position:absolute;top:0;bottom:0;left:0;width:300px;background:var(--surface-container);z-index:50;transform:translateX(-105%);transition:transform .22s ease;display:flex;flex-direction:column}
+.drawer.open{transform:translateX(0)}
+.drawer-header{padding:var(--sp-6) var(--sp-4) var(--sp-4);border-bottom:1px solid var(--outline-variant)}
+.session-item{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);cursor:pointer;border-radius:var(--r-md);margin:2px var(--sp-2)}
+.session-item.active{background:var(--primary-container)}
+.session-item .dot{width:10px;height:10px;border-radius:50%;background:var(--tertiary);flex:none}
+.drawer-nav{padding:var(--sp-2) 0;border-top:1px solid var(--outline-variant);margin-top:auto}
+.dialog{position:absolute;left:var(--sp-6);right:var(--sp-6);top:50%;transform:translateY(-50%);background:var(--surface-container);border-radius:var(--r-lg);z-index:70;padding:var(--sp-6);display:none;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.dialog.open{display:block}
+.dialog .dlg-title{font-size:16px;font-weight:600;color:var(--on-surface);margin-bottom:var(--sp-2)}
+.dialog .dlg-actions{display:flex;justify-content:flex-end;gap:var(--sp-2);margin-top:var(--sp-6)}
+.dialog input[type=text],.dialog input[type=password],.dialog input[type=number]{width:100%;height:48px;padding:0 var(--sp-3);border:1px solid var(--outline-variant);border-radius:var(--r-md);background:var(--surface);color:var(--on-surface);font-size:15px;outline:none;margin-top:var(--sp-2)}
+.dialog input:focus{border-color:var(--primary)}
+.panel{position:absolute;top:56px;right:var(--sp-2);width:220px;background:var(--surface-container);border-radius:var(--r-md);z-index:60;display:none;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.panel.open{display:block}
+.panel .p-item{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-3) var(--sp-4);cursor:pointer;font-size:14px;color:var(--on-surface)}
+.panel .p-item:hover{background:var(--surface-container-high)}
+.panel .p-item.active{color:var(--primary)}
+
+/* 向导 */
+.wizard-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--sp-6);text-align:center;gap:var(--sp-3)}
+.wizard-steps{display:flex;gap:var(--sp-2);margin-top:var(--sp-4)}
+.wstep{width:10px;height:10px;border-radius:50%;background:var(--outline-variant)}
+.wstep.done{background:var(--tertiary)}
+.wstep.now{background:var(--primary)}
+.progress-track{width:100%;height:8px;border-radius:var(--r-full);background:var(--surface-container-high);margin-top:var(--sp-3);overflow:hidden}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--tertiary));border-radius:var(--r-full);transition:width .4s}
+
+/* 终端 */
+.terminal{flex:1;background:#282A36;padding:var(--sp-3);overflow-y:auto;font-family:var(--mono);font-size:12px;line-height:1.65;color:#F8F8F2;white-space:pre;transition:background .2s,color .2s}
+.terminal .dim{color:#6272A4}
+.terminal .cyan{color:#8BE9FD}
+.terminal .yel{color:#F1FA8C}
+.terminal .red{color:#FF5555}
+.terminal .path{color:#50FA7B}
+.terminal .cursor{display:inline-block;width:7px;height:14px;background:#F8F8F2;vertical-align:text-bottom;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.extrakeys{flex:none;background:#131A21;border-top:1px solid var(--outline-variant);padding:var(--sp-1) var(--sp-2) var(--sp-2)}
+.ek-row{display:flex;gap:4px;margin-top:4px}
+.ek{flex:1;height:34px;border:none;border-radius:8px;background:var(--surface-container-high);color:var(--on-surface);font-family:var(--mono);font-size:11px;cursor:pointer}
+.ek.alt{background:#232D39;color:var(--on-primary-container)}
+.ek.acc{background:var(--primary-container);color:var(--on-primary-container)}
+.ek:active{background:var(--primary);color:var(--on-primary)}
+
+/* 文件管理器 */
+.pane-header{display:flex;align-items:center;gap:var(--sp-1);padding:var(--sp-2) var(--sp-3);font-family:var(--mono);font-size:11px;color:var(--on-surface-variant);border-bottom:1px solid var(--outline-variant);flex:none}
+.panes{flex:1;display:flex;overflow:hidden}
+.pane{flex:1;overflow-y:auto}
+.pane+.pane{border-left:1px solid var(--outline-variant)}
+.fitem{display:flex;align-items:center;gap:var(--sp-2);padding:7px var(--sp-3);cursor:pointer;font-size:12px}
+.fitem:hover{background:var(--surface-container-high)}
+.fitem .ico{flex:none;width:20px;text-align:center}
+.fitem .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono)}
+.fitem .perm{flex:none;font-size:9px;color:var(--on-surface-variant);font-family:var(--mono)}
+.fitem .sz{flex:none;font-size:10px;color:var(--on-surface-variant);width:44px;text-align:right}
+.fitem .star{flex:none;cursor:pointer;font-size:12px;color:var(--on-surface-variant)}
+.fitem .star.on{color:var(--warning)}
+.fitem.sel{background:var(--primary-container)}
+.batchbar{flex:none;display:flex;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--outline-variant);background:var(--surface-container)}
+.batchbar .btn{height:38px;font-size:13px;padding:0 var(--sp-3);flex:1}
+.path-edit{flex:1;font-family:var(--mono);font-size:13px;background:var(--surface-container);border:1px solid var(--primary);border-radius:6px;color:var(--on-surface);padding:6px var(--sp-2);outline:none;margin:0 var(--sp-2);display:none}
+
+/* 编辑器 */
+.editor{flex:1;display:flex;overflow:hidden;background:#282C34;font-family:var(--mono);font-size:12px;line-height:1.7}
+.gutter{flex:none;width:44px;text-align:right;padding:var(--sp-3) 8px;color:#3E4C56;background:#282C34;user-select:none}
+.code{flex:1;padding:var(--sp-3);white-space:pre;overflow:auto;color:#ABB2BF}
+.code .k{color:#C678DD}.code .s{color:#98C379}.code .c{color:#5B6A76;font-style:italic}.code .f{color:#61AFEF}.code .n{color:#D19A66}.code .hl{background:rgba(209,154,102,.35);border-radius:2px}
+.code.ro{opacity:.75}
+.symbolbar{flex:none;display:flex;gap:6px;padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--outline-variant)}
+.symbolbar .ek{flex:none;width:38px}
+.ed-status{flex:none;padding:var(--sp-2) var(--sp-4);border-top:1px solid var(--outline-variant);font-size:11px;color:var(--on-surface-variant);display:flex;gap:var(--sp-4)}
+.findbar{flex:none;display:none;gap:var(--sp-2);align-items:center;padding:var(--sp-2) var(--sp-3);border-bottom:1px solid var(--outline-variant);background:var(--surface-container)}
+.findbar.open{display:flex}
+.findbar input{flex:1;height:40px;padding:0 var(--sp-3);border:1px solid var(--outline-variant);border-radius:var(--r-md);background:var(--surface);color:var(--on-surface);font-size:14px;outline:none}
+.findbar .cnt{font-size:12px;color:var(--on-surface-variant);flex:none;width:52px;text-align:center}
+
+/* 设置 */
+.setting-group{margin-top:var(--sp-3)}
+.color-dots{display:flex;gap:var(--sp-2);padding:var(--sp-2) var(--sp-4);flex-wrap:wrap}
+.cdot{width:44px;height:44px;border-radius:12px;border:2px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:#fff}
+.cdot.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary)}
+.mirror-list .list-item{border-radius:var(--r-md);margin:0 var(--sp-2)}
+.mirror-list .list-item.active{background:var(--primary-container)}
+.ssh-status{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);margin:0 var(--sp-4);border-radius:var(--r-md);background:var(--surface-container)}
+.ssh-status .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.ssh-status.ok .dot{background:var(--tertiary)}
+.ssh-status.err{background:rgba(248,81,73,.08);border:1px solid var(--error)}
+.ssh-status.err .dot{background:var(--error)}
+.ssh-status .reason{font-size:11px;color:var(--error);font-family:var(--mono);word-break:break-all}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>📶 🔋 100%</span></div>
+
+  <!-- ═══════ 屏 1 · 安装向导（FR-W1~W4） ═══════ -->
+  <div class="screen active" id="scr-wizard">
+    <div class="wizard-body">
+      <svg width="92" height="92" viewBox="0 0 120 120">
+        <defs><linearGradient id="swirl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#3FB950"/></linearGradient></defs>
+        <g fill="none" stroke="url(#swirl)" stroke-width="7" stroke-linecap="round">
+          <path d="M60 60 m-28 0 a28 28 0 1 1 56 0 a28 28 0 1 1 -56 0" transform="rotate(0 60 60)"/>
+          <path d="M60 60 m-22 0 a22 22 0 1 1 44 0 a22 22 0 1 1 -44 0" transform="rotate(72 60 60)"/>
+          <path d="M60 60 m-16 0 a16 16 0 1 1 32 0 a16 16 0 1 1 -32 0" transform="rotate(144 60 60)"/>
+          <path d="M60 60 m-10 0 a10 10 0 1 1 20 0 a10 10 0 1 1 -20 0" transform="rotate(216 60 60)"/>
+          <path d="M60 60 m-4 0 a4 4 0 1 1 8 0 a4 4 0 1 1 -8 0" transform="rotate(288 60 60)"/>
+        </g>
+      </svg>
+      <div class="t-headline mono" style="letter-spacing:.04em">DebDroid</div>
+      <div class="t-caption">在手机上运行完整的 Debian 13 (trixie) · 免 root</div>
+      <div class="wizard-steps"><span class="wstep done" id="ws1"></span><span class="wstep now" id="ws2"></span><span class="wstep" id="ws3"></span></div>
+
+      <!-- 安装中 -->
+      <div id="wiz-install" style="width:100%">
+        <div class="card" style="width:100%;margin:0;text-align:left">
+          <div class="t-label" style="display:flex;justify-content:space-between"><span id="wiz-step-label">解压内置镜像 rootfs.tar.xz</span><span id="wiz-pct" class="mono">0%</span></div>
+          <div class="progress-track"><div class="progress-fill" id="wiz-bar"></div></div>
+          <div class="t-caption" style="margin-top:var(--sp-2)" id="wiz-note">约 1–3 分钟 · 需约 400MB 空闲空间 · 全程离线</div>
+        </div>
+        <button class="btn btn-filled btn-block" onclick="startInstall()">安装 Debian</button>
+        <div class="t-caption" style="text-align:center;margin-top:var(--sp-2)"><a href="javascript:failInstall()" style="color:var(--on-surface-variant)">模拟安装失败（错误态演示）</a></div>
+      </div>
+
+      <!-- 安装失败（FR-W2 错误覆盖） -->
+      <div id="wiz-error" style="display:none;width:100%">
+        <div class="error-card" style="width:100%;margin:0">
+          <div class="err-title">⚠ 安装失败</div>
+          <div class="t-caption mono" style="margin-top:var(--sp-2)">解压 rootfs.tar.xz 中断：剩余空间不足（需约 400MB）</div>
+        </div>
+        <button class="btn btn-tonal btn-block" onclick="resetInstall()">重试安装</button>
+        <button class="btn btn-text btn-block" onclick="resetInstall()">检查存储空间</button>
+      </div>
+
+      <!-- 完成（FR-W3） -->
+      <div id="wiz-done" style="display:none;width:100%">
+        <div class="card" style="width:100%;margin:0;text-align:left">
+          <div class="t-label" style="color:var(--tertiary)">✓ 安装完成</div>
+          <div class="t-caption" style="margin-top:var(--sp-1)">Debian 13 (trixie) 已就绪 · proot 免 root · apt 源：清华 TUNA（中文环境默认）</div>
+        </div>
+        <button class="btn btn-filled btn-block" onclick="go('scr-terminal')">进入终端 ▸</button>
+      </div>
+      <div class="t-caption" style="margin-top:var(--sp-4)">🔒 无需 root · 📦 镜像内置零下载 · ✈️ 离线安装</div>
+    </div>
+  </div>
+
+  <!-- ═══════ 屏 2 · 终端（FR-T1~T5, S1~S5） ═══════ -->
+  <div class="screen" id="scr-terminal">
+    <div class="appbar">
+      <button class="icon-btn" onclick="openDrawer()" aria-label="打开会话列表">☰</button>
+      <div class="t-title mono" style="font-size:14px">root@debian: <span style="color:var(--tertiary)">~</span> <span class="badge ok" id="term-scheme-badge">Dra</span></div>
+      <button class="icon-btn" onclick="termMenu(this)" aria-label="终端菜单">⋮</button>
+      <div class="panel" id="term-panel">
+        <div class="p-item" onclick="toast('已新建会话 node-build（proot 启动中…）')">＋ 新建会话</div>
+        <div class="p-item" onclick="toast('已切换配色：One Dark')">🎨 切换配色</div>
+        <div class="p-item" onclick="toast('已发送 Ctrl+C 到当前会话')">⏹ 中断前台进程 (Ctrl+C)</div>
+        <div class="p-item" onclick="toast('模拟：会话启动失败 — proot 解包异常 (ENOSPC)','err')">⚠ 模拟启动失败</div>
+      </div>
+    </div>
+    <div class="terminal" id="term-view"><span class="dim">Debian GNU/Linux 13 (trixie) · tty1 · proot · arm64</span>
+<span class="dim">debdroid login:</span> root <span class="dim">（自动登录）</span>
+<span class="dim">上次登录：</span><span class="dim">2026-08-26 09:41:00</span>
+
+<span class="path">root@debian</span>:<span class="cyan">~</span># <span class="yel">tmux</span> new -A -s main
+<span class="dim">[已附加到会话 main（tmux 3.5a）]</span>
+<span class="path">root@debian</span>:<span class="cyan">~</span># <span class="yel">apt</span> update
+<span class="dim">命中:1 http://mirrors.tuna.tsinghua.edu.cn/debian trixie InRelease</span>
+<span class="dim">命中:2 http://mirrors.tuna.tsinghua.edu.cn/debian-security trixie-security InRelease</span>
+<span class="dim">正在读取软件包列表... 完成</span>
+<span class="path">root@debian</span>:<span class="cyan">~</span># <span class="yel">apt</span> install -y python3-pip nodejs npm git
+<span class="dim">正在读取软件包列表... 完成</span>
+<span class="dim">正在解压 nodejs (18.19.0+dfsg-6) ...</span>
+<span class="dim">正在设置 nodejs (18.19.0+dfsg-6) ...</span>
+<span class="path">root@debian</span>:<span class="cyan">~</span># <span class="yel">python3</span> -c <span class="s">"import sys; print(sys.version)"</span>
+<span class="dim">3.12.8 (main, 2026-07-14, 10:20:00)</span>
+<span class="path">root@debian</span>:<span class="cyan">~</span># <span class="yel">git</span> clone <span class="s">https://github.com/example/demo.git</span>
+<span class="dim">正克隆到 'demo'...</span>
+<span class="dim">remote: Enumerating objects: 42, done.</span>
+<span class="dim">remote: Total 42 (delta 17), reused 42 (delta 17)</span>
+<span class="path">root@debian</span>:<span class="cyan">~/demo</span># <span class="yel">npm</span> install
+<span class="dim">added 128 packages in 6s</span>
+<span class="dim">128 packages are looking for funding</span>
+<span class="path">root@debian</span>:<span class="cyan">~/demo</span># <span class="cursor"></span></div>
+    <div class="extrakeys">
+      <div class="ek-row"><button class="ek alt" onclick="toast('ESC')">ESC</button><button class="ek alt" onclick="toast('TAB')">TAB</button><button class="ek alt" onclick="toast('CTRL 组合键（长按连发）')">CTRL</button><button class="ek alt" onclick="toast('ALT')">ALT</button><button class="ek acc" onclick="toast('⎇ 组合键')">⎇</button><button class="ek" onclick="toast('/')">/</button><button class="ek" onclick="toast('-')">-</button><button class="ek" onclick="toast('.')">.</button><button class="ek" onclick="toast('_')">_</button></div>
+      <div class="ek-row"><button class="ek" onclick="toast('|')">|</button><button class="ek" onclick="toast('&amp;')">&amp;</button><button class="ek" onclick="toast('&gt;')">&gt;</button><button class="ek" onclick="toast('~')">~</button><button class="ek" onclick="toast('$')">$</button><button class="ek" onclick="toast('0')">0</button><button class="ek" onclick="toast('←')">←</button><button class="ek" onclick="toast('↑')">↑</button><button class="ek" onclick="toast('↓')">↓</button><button class="ek" onclick="toast('→')">→</button></div>
+      <div class="ek-row"><button class="ek" onclick="toast('PgUp')">PgUp</button><button class="ek" onclick="toast('PgDn')">PgDn</button><button class="ek" onclick="toast('Home')">Home</button><button class="ek" onclick="toast('End')">End</button><button class="ek" onclick="toast('Del')">Del</button><button class="ek" onclick="toast('Ins')">Ins</button><button class="ek" onclick="toast('␣')">␣</button><button class="ek" onclick="toast('↩')">↩</button><button class="ek" onclick="toast('Ctrl+Z')">Ctrl+Z</button></div>
+    </div>
+
+    <!-- 抽屉（FR-S2/S3） -->
+    <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+    <div class="drawer" id="drawer">
+      <div class="drawer-header">
+        <div class="t-title mono">DebDroid</div>
+        <div class="t-caption" style="margin-top:2px">v2.0.0 · Debian 13 (trixie) · arm64</div>
+      </div>
+      <div class="t-overline" style="padding:var(--sp-3) var(--sp-4) 0">会话</div>
+      <div class="session-item active" onclick="selSession(this,'main')"><span class="dot"></span><span class="grow mono" style="font-size:13px">main</span><span class="badge">tmux</span></div>
+      <div class="session-item" onclick="selSession(this,'node-build')"><span class="dot" style="background:var(--warning)"></span><span class="grow mono" style="font-size:13px">node-build</span><span class="badge">tmux</span></div>
+      <div class="session-item" onclick="selSession(this,'ssh-tunnel')"><span class="dot" style="background:var(--primary)"></span><span class="grow mono" style="font-size:13px">ssh-tunnel</span><span class="badge">bash</span></div>
+      <div class="session-item" onclick="toast('新建会话：proot 拉起中…')"><span style="color:var(--primary)">＋</span><span class="grow mono" style="font-size:13px;color:var(--primary)">新建会话</span></div>
+      <div class="divider"></div>
+      <div class="t-overline" style="padding:var(--sp-3) var(--sp-4) 0">导航</div>
+      <div class="drawer-nav">
+        <div class="list-item" onclick="closeDrawer();go('scr-files')"><span>📁</span><span class="grow">文件管理器</span></div>
+        <div class="list-item" onclick="closeDrawer();go('scr-editor')"><span>📝</span><span class="grow">文本编辑器</span></div>
+        <div class="list-item" onclick="closeDrawer();go('scr-settings')"><span>⚙️</span><span class="grow">设置</span></div>
+        <div class="list-item" onclick="closeDrawer();toast('已关闭全部会话')"><span>⏹</span><span class="grow">全部关闭</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ 屏 3 · 文件管理器（FR-F1~F5） ═══════ -->
+  <div class="screen" id="scr-files">
+    <div class="appbar">
+      <button class="icon-btn" onclick="go('scr-terminal')" aria-label="返回终端">←</button>
+      <div class="t-title mono" style="font-size:12px" id="fs-path-title">debian:/root <span style="color:var(--on-surface-variant)">⇄</span> 手机:Download</div>
+      <input class="path-edit" id="fs-path-edit" value="debian:/root" onkeydown="if(event.key==='Enter'){pathDone()}">
+      <button class="icon-btn" onclick="fsMenu(this)" aria-label="文件菜单">⋮</button>
+      <div class="panel" id="fs-panel">
+        <div class="p-item active" onclick="fsSort(this,'名称 ↑')">↕ 名称 ↑</div>
+        <div class="p-item" onclick="fsSort(this,'名称 ↓')">↕ 名称 ↓</div>
+        <div class="p-item" onclick="fsSort(this,'大小')">🗜 大小</div>
+        <div class="p-item" onclick="fsSort(this,'时间')">🕐 时间</div>
+        <div class="divider" style="margin:0"></div>
+        <div class="p-item" onclick="toast('书签：☆ 收藏 / ★ 已收藏（点击行尾星标）')">⭐ 书签管理</div>
+        <div class="p-item" onclick="toast('刷新目录')">🔄 刷新</div>
+      </div>
+    </div>
+    <div class="panes">
+      <div class="pane" id="pane-l">
+        <div class="pane-header">L · Debian <span style="color:var(--tertiary)">/root</span></div>
+        <div id="flist-l"></div>
+      </div>
+      <div class="pane" id="pane-r">
+        <div class="pane-header">R · 手机 <span style="color:var(--on-surface-variant)">/sdcard/Download</span></div>
+        <div id="flist-r"></div>
+      </div>
+    </div>
+    <div class="batchbar" id="batchbar" style="display:none">
+      <button class="btn btn-tonal" onclick="toast('已复制 2 项到对侧（后台线程）')">复制 →</button>
+      <button class="btn btn-tonal" onclick="toast('已移动 2 项到对侧')">移动</button>
+      <button class="btn btn-tonal" onclick="openDlg('dlg-del')">删除</button>
+      <button class="btn btn-text" onclick="fsClear()">全选</button>
+    </div>
+  </div>
+
+  <!-- ═══════ 屏 4 · 文本编辑器（FR-E1~E4） ═══════ -->
+  <div class="screen" id="scr-editor">
+    <div class="appbar">
+      <button class="icon-btn" onclick="editorBack()" aria-label="返回">←</button>
+      <div class="t-title mono" style="font-size:14px">server.py <span class="badge warn" id="ed-dirty-badge">未保存</span> <span class="badge" id="ed-ro-badge" style="display:none">只读</span></div>
+      <button class="icon-btn" onclick="saveFile()" aria-label="保存">💾</button>
+      <button class="icon-btn" onclick="edMenu(this)" aria-label="编辑器菜单">⋮</button>
+      <div class="panel" id="ed-panel">
+        <div class="p-item" onclick="toggleFind()">🔍 查找 / 替换</div>
+        <div class="p-item" onclick="toast('跳转到行：输入行号')">⤵ 跳转到行</div>
+        <div class="p-item" onclick="toast('自动换行：开')">⏎ 自动换行</div>
+        <div class="p-item" onclick="toast('字号 14 → 15')">A+ 增大字号</div>
+      </div>
+    </div>
+    <div class="findbar" id="findbar">
+      <input id="find-input" placeholder="查找…" value="hello">
+      <span class="cnt" id="find-cnt">1/1</span>
+      <button class="ek" style="flex:none;width:38px" onclick="toast('上一个')">↑</button>
+      <button class="ek" style="flex:none;width:38px" onclick="toast('下一个')">↓</button>
+      <button class="ek" style="flex:none;width:52px" onclick="toast('已全部替换 1 处')">全部</button>
+      <button class="ek" style="flex:none;width:30px" onclick="toggleFind()">✕</button>
+    </div>
+    <div class="editor">
+      <div class="gutter" id="ed-gutter"></div>
+      <div class="code" id="ed-code" contenteditable="true" spellcheck="false"><span class="c">#!/usr/bin/env python3</span>
+<span class="c"># FastAPI 服务 — 运行在手机里的 Debian 上</span>
+<span class="k">from</span> fastapi <span class="k">import</span> FastAPI
+<span class="k">import</span> uvicorn
+<span class="k">import</span> psutil
+
+app = FastAPI()
+
+<span class="f">@app.get</span>(<span class="s">"/"</span>)
+<span class="k">def</span> <span class="f">root</span>():
+    mem = psutil.virtual_memory()
+    <span class="k">return</span> {
+        <span class="s">"hello"</span>: <span class="s">"debian"</span>,
+        <span class="s">"arch"</span>: <span class="s">"arm64"</span>,
+        <span class="s">"mem_used_pct"</span>: mem.percent,
+    }
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    uvicorn.run(app, host=<span class="s">"0.0.0.0"</span>, port=<span class="n">8000</span>)</div>
+    </div>
+    <div class="symbolbar">
+      <button class="ek" id="ed-ro-btn" onclick="toggleRo()">🔒</button>
+      <button class="ek" onclick="toggleFind()">🔍</button>
+      <button class="ek" onclick="undoEdit()">↩</button>
+      <button class="ek" onclick="redoEdit()">↪</button>
+      <button class="ek" onclick="toast('跳转到行')">⤵</button>
+      <button class="ek" onclick="toast('自动换行：开')">⏎</button>
+      <button class="ek" onclick="toast('字号 +')">A+</button>
+    </div>
+    <div class="ed-status"><span>Ln 17, Col 23</span><span>UTF-8</span><span id="ed-dirty-ind">● 已修改</span></div>
+  </div>
+
+  <!-- ═══════ 屏 5 · 设置（FR-H1~H3, K1~K3, C1~C4） ═══════ -->
+  <div class="screen" id="scr-settings">
+    <div class="appbar">
+      <button class="icon-btn" onclick="go('scr-terminal')" aria-label="返回">←</button>
+      <div class="t-title">设置</div>
+    </div>
+
+    <div class="setting-group">
+      <div class="section-header"><span class="t-overline">外观</span></div>
+      <div class="list-item" onclick="themeMenu(this)"><span class="grow">主题模式</span><span class="meta" id="theme-val">深色 ▸</span></div>
+      <div class="panel" id="theme-panel">
+        <div class="p-item" onclick="setTheme(this,'跟随系统')">🖥 跟随系统</div>
+        <div class="p-item active" onclick="setTheme(this,'深色')">🌙 深色</div>
+        <div class="p-item" onclick="setTheme(this,'浅色')">☀️ 浅色</div>
+      </div>
+      <div class="t-label" style="padding:var(--sp-2) var(--sp-4) 0">终端配色（点击即预览终端屏）</div>
+      <div class="color-dots" id="color-dots">
+        <div class="cdot active" style="background:#282A36" onclick="scheme(this,'Dracula')">Dra</div>
+        <div class="cdot" style="background:#2E3440" onclick="scheme(this,'Nord')">Nor</div>
+        <div class="cdot" style="background:#282828" onclick="scheme(this,'Gruvbox')">Gru</div>
+        <div class="cdot" style="background:#1A1B26" onclick="scheme(this,'Tokyo Night')">Tok</div>
+        <div class="cdot" style="background:#002B36" onclick="scheme(this,'Solarized')">Sol</div>
+        <div class="cdot" style="background:#282C34" onclick="scheme(this,'One Dark')">One</div>
+        <div class="cdot" style="background:#272822" onclick="scheme(this,'Monokai')">Mon</div>
+        <div class="cdot" style="background:#0F1419" onclick="scheme(this,'Catppuccin')">Cat</div>
+      </div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">Nerd Font 图标字体</div><div class="t-caption">JetBrains Mono Nerd Font，等宽图标</div></span><span class="switch on"></span></div>
+      <div class="list-item" onclick="toast('字号 14（范围 8–32）')"><span class="grow">终端字号</span><span class="meta mono">14</span></div>
+    </div>
+
+    <div class="setting-group">
+      <div class="section-header"><span class="t-overline">终端</span></div>
+      <div class="list-item" onclick="openDlg('dlg-startcmd')"><span class="grow">启动命令</span><span class="meta mono" style="font-size:11px">/bin/bash --login</span></div>
+      <div class="list-item" onclick="openDlg('dlg-initdir')"><span class="grow">初始目录</span><span class="meta mono">/root</span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">tmux 会话保持</div><div class="t-caption">默认 tmux new -A -s main，进程被杀可回现场</div></span><span class="switch on"></span></div>
+      <div class="list-item" onclick="toast('自定义 DNS：223.5.5.5（写入 resolv.conf）')"><span class="grow">自定义 DNS</span><span class="meta mono">223.5.5.5</span></div>
+    </div>
+
+    <div class="setting-group">
+      <div class="section-header"><span class="t-overline">SSH 服务器</span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">启用 SSH</div><div class="t-caption">openssh-server 已预装 · 即开即用</div></span><span class="switch on"></span></div>
+      <div class="ssh-status ok" id="ssh-status">
+        <span class="dot"></span>
+        <span class="grow mono" style="font-size:12px">运行中 · ssh root@192.168.31.171 -p 8022</span>
+        <span class="badge ok">在线</span>
+      </div>
+      <div class="list-item" onclick="openDlg('dlg-port')"><span class="grow">端口</span><span class="meta mono">8022</span></div>
+      <div class="list-item" onclick="sshListen(this)"><span class="grow">监听地址</span><span class="meta">仅局域网</span></div>
+      <div class="list-item" onclick="openDlg('dlg-passwd')"><span class="grow">密码登录</span><span class="meta">已设置 ●●●●</span></div>
+      <div class="list-item" onclick="toast('公钥授权：2 把密钥（~/.ssh/authorized_keys）')"><span class="grow">公钥授权</span><span class="meta">2 把密钥</span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">开机自动启动 SSH</div></span><span class="switch on"></span></div>
+      <div class="t-caption" style="padding:0 var(--sp-4)"><a href="javascript:sshFail()" style="color:var(--on-surface-variant)">模拟端口占用（失败原因展示）</a></div>
+    </div>
+
+    <div class="setting-group">
+      <div class="section-header"><span class="t-overline">保活</span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">前台服务</div><div class="t-caption">常驻通知，防系统回收</div></span><span class="switch on"></span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">唤醒锁</div><div class="t-caption">息屏不中断任务（任务空闲自动释放）</div></span><span class="switch"></span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">电池优化白名单</div></span><span class="switch on"></span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">开机自启</div></span><span class="switch"></span></div>
+      <div class="switch-row" onclick="sw(this)"><span class="grow"><div class="t-label">自动恢复会话</div><div class="t-caption">进程被杀后重启自动重开终端</div></span><span class="switch on"></span></div>
+    </div>
+
+    <div class="setting-group">
+      <div class="section-header"><span class="t-overline">系统</span></div>
+      <div class="t-label" style="padding:var(--sp-2) var(--sp-4) 0">apt 镜像源（切换即重写 sources.list）</div>
+      <div class="mirror-list">
+        <div class="list-item" onclick="mirror(this)"><span class="grow mono" style="font-size:12px">官方 · deb.debian.org</span><span class="meta">—</span></div>
+        <div class="list-item active" onclick="mirror(this)"><span class="grow mono" style="font-size:12px">清华 TUNA</span><span class="meta">✓ 使用中</span></div>
+        <div class="list-item" onclick="mirror(this)"><span class="grow mono" style="font-size:12px">中科大 USTC</span><span class="meta">—</span></div>
+        <div class="list-item" onclick="mirror(this)"><span class="grow mono" style="font-size:12px">阿里云</span><span class="meta">—</span></div>
+        <div class="list-item" onclick="mirror(this)"><span class="grow mono" style="font-size:12px">腾讯云</span><span class="meta">—</span></div>
+      </div>
+      <div class="list-item" onclick="openDlg('dlg-reset')"><span class="grow">恢复 Debian 出厂状态</span><span class="meta" style="color:var(--error)">离线重解压 ▸</span></div>
+      <div class="list-item" style="border-top:1px solid var(--outline-variant)"><span class="grow">版本</span><span class="meta mono">v2.0.0 (build 1)</span></div>
+    </div>
+    <div style="height:24px"></div>
+  </div>
+
+  <!-- ═══════ 对话框 ═══════ -->
+  <div class="scrim" id="dlg-scrim" onclick="closeAllDlg()"></div>
+  <div class="dialog" id="dlg-del">
+    <div class="dlg-title">删除 2 项？</div>
+    <div class="t-body" style="font-size:14px">将永久删除所选文件，<b style="color:var(--error)">此操作不可撤销</b>。</div>
+    <div class="dlg-actions"><button class="btn btn-text" onclick="closeAllDlg()">取消</button><button class="btn btn-danger" onclick="closeAllDlg();toast('已删除 2 项（不可撤销）')">删除</button></div>
+  </div>
+  <div class="dialog" id="dlg-port">
+    <div class="dlg-title">SSH 端口</div>
+    <div class="t-caption">范围 1024–65535；修改后需重启 SSH 生效</div>
+    <input type="number" value="8022" min="1024" max="65535">
+    <div class="dlg-actions"><button class="btn btn-text" onclick="closeAllDlg()">取消</button><button class="btn btn-filled" onclick="closeAllDlg();toast('端口已改为 8022，SSH 已重启')">保存</button></div>
+  </div>
+  <div class="dialog" id="dlg-passwd">
+    <div class="dlg-title">SSH 密码登录</div>
+    <div class="t-caption">留空 = 禁用密码登录（仅公钥）</div>
+    <input type="password" placeholder="输入 root 登录密码" value="debian">
+    <div class="dlg-actions"><button class="btn btn-text" onclick="closeAllDlg()">取消</button><button class="btn btn-filled" onclick="closeAllDlg();toast('密码已更新')">保存</button></div>
+  </div>
+  <div class="dialog" id="dlg-reset">
+    <div class="dlg-title">恢复 Debian 出厂状态？</div>
+    <div class="t-body" style="font-size:14px">将删除当前 rootfs 与全部数据（含已装软件、SSH 配置），<b style="color:var(--error)">不可撤销</b>。随后离线重新解压内置镜像。</div>
+    <div class="dlg-actions"><button class="btn btn-text" onclick="closeAllDlg()">取消</button><button class="btn btn-danger" onclick="closeAllDlg();go('scr-wizard');resetInstall()">确认恢复</button></div>
+  </div>
+  <div class="dialog" id="dlg-startcmd">
+    <div class="dlg-title">启动命令</div>
+    <div class="t-caption">默认 /bin/bash --login；启用 tmux 保持时自动替换为 tmux new -A -s main</div>
+    <input type="text" value="/bin/bash --login">
+    <div class="dlg-actions"><button class="btn btn-text" onclick="closeAllDlg()">取消</button><button class="btn btn-filled" onclick="closeAllDlg();toast('启动命令已保存')">保存</button></div>
+  </div>
+  <div class="dialog" id="dlg-initdir">
+    <div class="dlg-title">初始目录</div>
+    <input type="text" value="/root">
+    <div class="dlg-actions"><button class="btn btn-text" onclick="closeAllDlg()">取消</button><button class="btn btn-filled" onclick="closeAllDlg();toast('初始目录已保存')">保存</button></div>
+  </div>
+  <div class="dialog" id="dlg-unsaved">
+    <div class="dlg-title">有未保存的修改</div>
+    <div class="t-body" style="font-size:14px">离开将丢失对 <b class="mono">server.py</b> 的修改。</div>
+    <div class="dlg-actions"><button class="btn btn-text" onclick="closeAllDlg()">取消</button><button class="btn btn-tonal" onclick="closeAllDlg();saveFile();go('scr-files')">保存并离开</button><button class="btn btn-danger" onclick="closeAllDlg();go('scr-files')">不保存</button></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ═══════ 基础：屏切换 / toast / 菜单 / 对话框 ═══════ */
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');closeAllDlg();}
+(function(){const h=location.hash.replace('#','');if(h){const el=document.getElementById('scr-'+h);if(el)go(el.id);}})();
+let toastTimer;
+function toast(msg,kind){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(kind==='err'?' err':'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.className='toast',1800);}
+function openMenu(id,anchor){document.querySelectorAll('.panel').forEach(p=>{if(p.id!==id)p.classList.remove('open')});document.getElementById(id).classList.toggle('open');}
+function closeMenus(){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('open'));}
+function openDlg(id){closeMenus();document.getElementById('dlg-scrim').classList.add('open');document.getElementById(id).classList.add('open');}
+function closeAllDlg(){document.querySelectorAll('.dialog').forEach(d=>d.classList.remove('open'));document.getElementById('dlg-scrim').classList.remove('open');}
+function sw(row){row.querySelector('.switch').classList.toggle('on');}
+
+/* ═══════ 向导（FR-W1~W4） ═══════ */
+let instTimer=null;
+const wizSteps=[['解压内置镜像 rootfs.tar.xz',0,40,'约 1–3 分钟 · 需约 400MB 空闲空间'],['配置 Debian 13 (trixie)',40,85,'写入 apt 源与 resolv.conf'],['写入 proot 启动环境',85,100,'准备终端会话']];
+function startInstall(){if(instTimer)return;document.getElementById('wiz-error').style.display='none';document.getElementById('wiz-install').style.display='block';
+  const bar=document.getElementById('wiz-bar'),pct=document.getElementById('wiz-pct'),note=document.getElementById('wiz-note'),lab=document.getElementById('wiz-step-label');
+  let p=0;instTimer=setInterval(()=>{p+=2+Math.random()*3;if(p>=100){p=100;clearInterval(instTimer);instTimer=null;bar.style.width='100%';pct.textContent='100%';
+    document.getElementById('wiz-install').style.display='none';document.getElementById('wiz-done').style.display='block';document.getElementById('ws3').classList.add('done');document.getElementById('ws2').classList.remove('now');
+    toast('安装完成：Debian 13 (trixie) 已就绪');}
+  else{bar.style.width=p+'%';pct.textContent=Math.floor(p)+'%';for(const[a,b,t,l]of wizSteps){if(p>=a&&p<b){lab.textContent=t;note.textContent=l;}}}},170);}
+function failInstall(){if(instTimer){clearInterval(instTimer);instTimer=null;}document.getElementById('wiz-install').style.display='none';document.getElementById('wiz-error').style.display='block';}
+function resetInstall(){document.getElementById('wiz-error').style.display='none';document.getElementById('wiz-done').style.display='none';document.getElementById('wiz-install').style.display='block';
+  document.getElementById('wiz-bar').style.width='0';document.getElementById('wiz-pct').textContent='0%';
+  document.getElementById('ws1').classList.add('done');document.getElementById('ws2').classList.add('now');document.getElementById('ws3').classList.remove('done');}
+
+/* ═══════ 终端（FR-T1~T5, S1~S5） ═══════ */
+function openDrawer(){closeMenus();document.getElementById('scrim').classList.add('open');document.getElementById('drawer').classList.add('open');}
+function closeDrawer(){document.getElementById('scrim').classList.remove('open');document.getElementById('drawer').classList.remove('open');}
+function termMenu(anchor){openMenu('term-panel');}
+function selSession(el,name){document.querySelectorAll('.session-item').forEach(s=>s.classList.remove('active'));el.classList.add('active');closeDrawer();toast('已切换到会话 '+name);}
+
+/* 配色联动（FR-T4）：8 套方案，点击设置色块实时改终端屏 */
+const SCHEMES={Dracula:{bg:'#282A36',fg:'#F8F8F2',cur:'#F8F8F2'},Nord:{bg:'#2E3440',fg:'#D8DEE9',cur:'#D8DEE9'},Gruvbox:{bg:'#282828',fg:'#EBDBB2',cur:'#EBDBB2'},'Tokyo Night':{bg:'#1A1B26',fg:'#A9B1D6',cur:'#A9B1D6'},Solarized:{bg:'#002B36',fg:'#93A1A1',cur:'#93A1A1'},'One Dark':{bg:'#282C34',fg:'#ABB2BF',cur:'#ABB2BF'},Monokai:{bg:'#272822',fg:'#F8F8F2',cur:'#F8F8F2'},Catppuccin:{bg:'#0F1419',fg:'#E6EDF3',cur:'#E6EDF3'}};
+function scheme(el,name){document.querySelectorAll('.cdot').forEach(d=>d.classList.remove('active'));el.classList.add('active');
+  const s=SCHEMES[name];const tv=document.getElementById('term-view');if(tv){tv.style.background=s.bg;tv.style.color=s.fg;}
+  document.getElementById('term-scheme-badge').textContent=name.slice(0,3);toast('配色已切换：'+name+'（终端屏实时预览）');}
+
+/* ═══════ 文件管理器（FR-F1~F5） ═══════ */
+const L_FILES=[
+  {ico:'📂',n:'projects/',sz:'—',p:'drwxr-xr-x',star:true},
+  {ico:'📂',n:'.npm/',sz:'—',p:'drwxr-xr-x',star:false},
+  {ico:'📄',n:'.bashrc',sz:'3.4K',p:'-rw-r--r--',star:true},
+  {ico:'📄',n:'server.py',sz:'8.1K',p:'-rwxr-xr-x',star:false},
+  {ico:'📄',n:'deploy.sh',sz:'1.2K',p:'-rwxr-xr-x',star:false},
+  {ico:'🗄',n:'db.sqlite',sz:'2.1M',p:'-rw-r--r--',star:false},
+  {ico:'📦',n:'node_modules/',sz:'—',p:'drwxr-xr-x',star:false},
+  {ico:'📄',n:'package.json',sz:'612B',p:'-rw-r--r--',star:false},
+  {ico:'🔗',n:'.l2s.proot',sz:'—',p:'lrwxrwxrwx',star:false},
+  {ico:'📂',n:'empty-dir/',sz:'—',p:'drwxr-xr-x',star:false,empty:true},
+];
+const R_FILES=[
+  {ico:'📂',n:'DCIM/',sz:'—',p:'drwxrwx--x',star:true},
+  {ico:'📂',n:'Movies/',sz:'—',p:'drwxrwx--x',star:false},
+  {ico:'📂',n:'backup/',sz:'—',p:'drwxrwx--x',star:false},
+  {ico:'📦',n:'DebDroid-arm64-v2.0.0.apk',sz:'118M',p:'-rw-rw----',star:true},
+  {ico:'🎬',n:'demo-video.mp4',sz:'42M',p:'-rw-rw----',star:false},
+  {ico:'🎵',n:'demo.mp3',sz:'4.3M',p:'-rw-rw----',star:false},
+  {ico:'📄',n:'notes.md',sz:'2.2K',p:'-rw-rw----',star:false},
+  {ico:'📄',n:'report.pdf',sz:'1.8M',p:'-rw-rw----',star:false},
+  {ico:'🖼',n:'screenshot.png',sz:'3.1M',p:'-rw-rw----',star:false},
+];
+function renderPane(id,files){const box=document.getElementById(id);box.innerHTML='';
+  files.forEach(f=>{const d=document.createElement('div');d.className='fitem';d.innerHTML=`<span class="ico">${f.ico}</span><span class="name">${f.n}</span><span class="sz">${f.sz}</span><span class="star${f.star?' on':''}" onclick="event.stopPropagation();toggleStar(this)">${f.star?'★':'☆'}</span><span class="perm">${f.p}</span>`;
+    d.onclick=()=>{if(f.empty){box.innerHTML='<div class="empty-state"><div class="icon">📭</div><div class="t-body">此文件夹为空</div><div class="t-caption" style="margin-top:4px">返回上级查看其他文件</div></div>';toast('空目录演示：'+f.n);}
+      else if(/\.(py|md|sh|txt|js|json)$/.test(f.n)){document.getElementById('ed-title').textContent=f.n;go('scr-editor');}
+      else{fsSel(d);}};box.appendChild(d);});}
+function renderAll(){renderPane('flist-l',L_FILES);renderPane('flist-r',R_FILES);}
+renderAll();
+function fsSel(el){el.classList.toggle('sel');const n=document.querySelectorAll('.fitem.sel').length;document.getElementById('batchbar').style.display=n>0?'flex':'none';}
+function fsClear(){document.querySelectorAll('.fitem.sel').forEach(e=>e.classList.remove('sel'));document.getElementById('batchbar').style.display='none';}
+function toggleStar(el){el.classList.toggle('on');el.textContent=el.classList.contains('on')?'★':'☆';toast(el.classList.contains('on')?'已加入书签':'已移除书签');}
+function fsMenu(a){openMenu('fs-panel');}
+function fsSort(el,label){document.querySelectorAll('#fs-panel .p-item').forEach(p=>p.classList.remove('active'));el.classList.add('active');toast('排序方式：'+label);}
+function pathEdit(){document.getElementById('fs-path-title').style.display='none';document.getElementById('fs-path-edit').style.display='block';document.getElementById('fs-path-edit').focus();}
+function pathDone(){document.getElementById('fs-path-edit').style.display='none';document.getElementById('fs-path-title').style.display='block';toast('路径已切换');}
+document.getElementById('fs-path-title').addEventListener('click',pathEdit);
+
+/* ═══════ 编辑器（FR-E1~E4） ═══════ */
+let edDirty=true,edRo=false;
+function renderGutter(){const n=document.getElementById('ed-code').innerText.split('\n').length;let h='';for(let i=1;i<=n;i++)h+=i+'<br>';document.getElementById('ed-gutter').innerHTML=h;}
+renderGutter();
+function toggleFind(){const f=document.getElementById('findbar');f.classList.toggle('open');if(f.classList.contains('open'))document.getElementById('find-input').focus();}
+function toggleRo(){edRo=!edRo;document.getElementById('ed-code').classList.toggle('ro',edRo);document.getElementById('ed-ro-btn').textContent=edRo?'🔓':'🔒';document.getElementById('ed-ro-badge').style.display=edRo?'inline-block':'none';toast(edRo?'已切换只读模式（不可编辑）':'已退出只读模式');}
+function undoEdit(){toast('撤销（栈：剩余 99 步）');}
+function redoEdit(){toast('重做');}
+function saveFile(){edDirty=false;document.getElementById('ed-dirty-badge').style.display='none';document.getElementById('ed-dirty-ind').textContent='已保存';toast('已保存到 debian:/root/'+document.getElementById('ed-title').textContent);}
+function editorBack(){if(edDirty)openDlg('dlg-unsaved');else go('scr-files');}
+function edMenu(a){openMenu('ed-panel');}
+
+/* ═══════ 设置（FR-H/K/C） ═══════ */
+function themeMenu(a){openMenu('theme-panel');}
+function setTheme(el,val){document.querySelectorAll('#theme-panel .p-item').forEach(p=>p.classList.remove('active'));el.classList.add('active');document.getElementById('theme-val').textContent=val+' ▸';toast('主题模式：'+val);}
+function mirror(el){document.querySelectorAll('.mirror-list .list-item').forEach(m=>{m.classList.remove('active');m.querySelector('.meta').textContent='—';});el.classList.add('active');el.querySelector('.meta').textContent='✓ 使用中';toast('镜像源已切换，sources.list 已重写 ✓');}
+function sshListen(el){el.querySelector('.meta').textContent=el.querySelector('.meta').textContent==='仅局域网'?'全部接口':'仅局域网';toast('监听地址：'+el.querySelector('.meta').textContent+'（需重启 SSH）');}
+function sshFail(){const st=document.getElementById('ssh-status');st.className='ssh-status err';st.innerHTML='<span class="dot"></span><span class="grow mono" style="font-size:12px">启动失败 · 端口 8022 已被占用</span><span class="badge err">错误</span><div class="reason" style="flex-basis:100%">sshd: error: Bind to port 8022 on 0.0.0.0 failed: Address already in use.</div>';toast('SSH 启动失败（真实 stderr 透传）','err');}
+function sshReset(){document.getElementById('ssh-status').className='ssh-status ok';document.getElementById('ssh-status').innerHTML='<span class="dot"></span><span class="grow mono" style="font-size:12px">运行中 · ssh root@192.168.31.171 -p 8022</span><span class="badge ok">在线</span>';}
+
+/* 点击空白关闭菜单 */
+document.getElementById('dlg-scrim').addEventListener('click',closeAllDlg);
+document.querySelectorAll('.screen').forEach(s=>s.addEventListener('click',e=>{if(!e.target.closest('.panel')&&!e.target.closest('.icon-btn'))closeMenus();}));
+</script>
+</body>
+</html>
