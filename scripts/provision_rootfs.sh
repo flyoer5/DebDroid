@@ -34,11 +34,13 @@ sudo cat "$WORK/rfs/etc/resolv.conf"
 echo "[provision] apt install tmux + openssh-server (qemu) ..."
 sudo chroot "$WORK/rfs" /usr/bin/env -i \
   HOME=/root PATH=/usr/sbin:/usr/bin:/sbin:/bin DEBIAN_FRONTEND=noninteractive \
-  bash -c 'echo "--- chroot resolv.conf ---"; cat /etc/resolv.conf; echo "--- dns test ---"; getent hosts deb.debian.org || echo "DNS FAILED"; apt-get update -qq && apt-get install -y -qq --no-install-recommends tmux openssh-server && rm -rf /var/lib/apt/lists/*'
+  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends tmux openssh-server && rm -rf /var/lib/apt/lists/* && rm -f /etc/ssh/ssh_host_*'
 
 sudo rm -f "$WORK/rfs/etc/resolv.conf"
 
 echo "[provision] repacking rootfs.tar.xz ..."
-tar -cJf "$ROOTFS_XZ" -C "$WORK/rfs" .
+# chroot 内 root 创建的文件宿主侧归 root：sudo 打包，产物交还 runner 所有
+sudo tar -cJf "$ROOTFS_XZ" -C "$WORK/rfs" .
+sudo chown "$(id -u):$(id -g)" "$ROOTFS_XZ"
 
 echo "[provision] OK: tmux + openssh-server 已写入 $ROOTFS_XZ ($(stat -c %s "$ROOTFS_XZ") bytes)"
