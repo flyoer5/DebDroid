@@ -16,11 +16,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Redo
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -157,7 +154,7 @@ fun TextEditorScreen(
                     undoStack = undoStack.dropLast(1).let { ArrayDeque(it) }
                 }
             }, enabled = undoStack.isNotEmpty()) {
-                Icon(Icons.Filled.Undo, contentDescription = "撤销")
+                Text("↶", style = MaterialTheme.typography.titleMedium) // 撤销
             }
             IconButton(onClick = {
                 if (redoStack.isNotEmpty()) {
@@ -166,17 +163,17 @@ fun TextEditorScreen(
                     redoStack = redoStack.dropLast(1).let { ArrayDeque(it) }
                 }
             }, enabled = redoStack.isNotEmpty()) {
-                Icon(Icons.Filled.Redo, contentDescription = "重做")
+                Text("↷", style = MaterialTheme.typography.titleMedium) // 重做
             }
             IconButton(onClick = { readOnly = !readOnly }) {
                 Icon(
-                    if (readOnly) Icons.Filled.Lock else Icons.Filled.LockOpen,
+                    Icons.Filled.Lock,
                     contentDescription = "只读",
                     tint = if (readOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
             }
             IconButton(onClick = { save() }) {
-                Icon(Icons.Filled.Save, contentDescription = "保存")
+                Icon(Icons.Filled.Check, contentDescription = "保存")
             }
         }
 

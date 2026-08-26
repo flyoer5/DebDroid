@@ -36,8 +36,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -147,7 +145,7 @@ fun FileBrowserScreen(
             )
             Box {
                 IconButton(onClick = { sortMenu = true }) {
-                    Icon(Icons.Filled.Sort, contentDescription = "排序")
+                    Text("⇅", style = MaterialTheme.typography.titleMedium) // 排序
                 }
                 DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                     SortBy.entries.forEach { by ->
