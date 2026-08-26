@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -211,7 +212,3 @@ fun WizardScreen(
 }
 
 private enum class Phase { IDLE, INSTALLING, FAILED, DONE }
-
-private fun Modifier.rotate(degrees: Float): Modifier = this.then(
-    androidx.compose.ui.draw.rotate(degrees)
-)

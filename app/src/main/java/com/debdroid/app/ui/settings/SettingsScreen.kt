@@ -79,7 +79,7 @@ fun SettingsScreen(
     var dnsDlg by remember { mutableStateOf(false) }
     var resetDlg by remember { mutableStateOf(false) }
 
-    fun change(transform: (AppSettings) -> AppSettings) {
+    fun change(transform: (AppSettings) -> Unit) {
         onSettingsChange(transform)
         toast = "设置已保存 ✓"
     }
