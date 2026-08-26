@@ -25,10 +25,13 @@ tar -xJf "$ROOTFS_XZ" -C "$WORK/rfs"
 # chroot 内 apt 需要 DNS（runner 的 resolv.conf 是 symlink，直接写静态文件更稳）
 sudo sh -c "printf 'nameserver 8.8.8.8\\nnameserver 223.5.5.5\\n' > '$WORK/rfs/etc/resolv.conf'"
 
+echo "[provision] resolv.conf inside rootfs:"
+sudo cat "$WORK/rfs/etc/resolv.conf"
+
 echo "[provision] apt install tmux + openssh-server (qemu) ..."
 sudo chroot "$WORK/rfs" /usr/bin/env -i \
   HOME=/root PATH=/usr/sbin:/usr/bin:/sbin:/bin DEBIAN_FRONTEND=noninteractive \
-  bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends tmux openssh-server && rm -rf /var/lib/apt/lists/*'
+  bash -c 'echo "--- chroot resolv.conf ---"; cat /etc/resolv.conf; echo "--- dns test ---"; getent hosts deb.debian.org || echo "DNS FAILED"; apt-get update -qq && apt-get install -y -qq --no-install-recommends tmux openssh-server && rm -rf /var/lib/apt/lists/*'
 
 sudo rm -f "$WORK/rfs/etc/resolv.conf"
 
