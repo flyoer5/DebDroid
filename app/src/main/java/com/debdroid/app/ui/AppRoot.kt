@@ -7,6 +7,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +70,14 @@ fun AppRoot(initialRoute: String? = null) {
                 }
                 .getOrDefault(false)
             if (ok && settings.keepForeground) KeepAliveService.start(app)
+        }
+    }
+
+    // 重启后自动恢复会话（FR-S4 / keepRestore）：rootfs 已装、直接进终端屏时无会话则补建。
+    // 仅组合首帧执行一次，避免与 wizard 完成后的手动调用双触发。
+    LaunchedEffect(Unit) {
+        if (screen == Screen.TERMINAL && sessions.isEmpty() && settings.keepRestore) {
+            startFirstSession()
         }
     }
 
