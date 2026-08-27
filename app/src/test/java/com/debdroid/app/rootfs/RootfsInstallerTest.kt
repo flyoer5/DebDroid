@@ -24,8 +24,8 @@ class RootfsInstallerTest {
     }
 
     @Test
-    fun `zh locale defaults to tuna mirror`() {
-        assertEquals(AptMirror.TUNA, RootfsInstaller.defaultMirrorForLocale(Locale("zh", "CN")))
+    fun `zh locale defaults to aliyun mirror`() {
+        assertEquals(AptMirror.ALIYUN, RootfsInstaller.defaultMirrorForLocale(Locale("zh", "CN")))
         assertEquals(AptMirror.OFFICIAL, RootfsInstaller.defaultMirrorForLocale(Locale.US))
         assertEquals(AptMirror.OFFICIAL, RootfsInstaller.defaultMirrorForLocale(Locale.ENGLISH))
     }
