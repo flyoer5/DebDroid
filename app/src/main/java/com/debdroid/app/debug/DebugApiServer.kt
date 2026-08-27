@@ -109,7 +109,9 @@ class DebugApiServer(
             // ---- 设置 ----
             method == "GET" && path == "/api/settings" -> json(200, settingsJson(settingsSnapshot()))
 
-            method == "PUT" && path == "/api/settings" -> {
+            // 注：NanoHTTPD 的 parseBody 只读取 POST body，PUT 的 body 读不到（真机调试定位），
+            // 故设置更新用 POST。
+            method == "POST" && path == "/api/settings" -> {
                 val body = readBody(session)
                 val obj = JSONObject(body)
                 runBlocking {
