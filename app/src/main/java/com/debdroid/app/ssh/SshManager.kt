@@ -137,7 +137,9 @@ class SshManager(
         val cmdArgs = args.subList(0, envIndex).toMutableList()
         cmdArgs += listOf("/usr/bin/env", "-i")
         cmdArgs += args.subList(envIndex + 2, args.size - 3) // env 赋值段
-        cmdArgs += listOf("/bin/sh", "-c", "/usr/sbin/sshd -D -f /etc/ssh/sshd_config")
+        // 直接 exec sshd（不用 /bin/sh -c 包装）：holder 即 sshd 进程，stop 时 destroyForcibly 才能杀掉。
+        // 此前 sh 包装导致 stop 只杀 wrapper，sshd 子进程残留占端口（真机调试定位）。
+        cmdArgs += listOf("/usr/sbin/sshd", "-D", "-f", "/etc/ssh/sshd_config")
 
         val pb = ProcessBuilder(cmdArgs)
         pb.redirectErrorStream(true)
@@ -181,6 +183,10 @@ class SshManager(
             runCatching { p.waitFor(3, java.util.concurrent.TimeUnit.SECONDS) }
         }
         holder = null
+        // 兜底：proot 内清理残留 sshd（旧版本 sh 包装启动的 sshd 杀不掉，会残留占端口）
+        runCatching {
+            ProotLauncher(context, AppSettings()).runOnce("pkill -x sshd 2>/dev/null; pkill -f 'sshd -D' 2>/dev/null", 10)
+        }
         refreshStatus()
     }
 
