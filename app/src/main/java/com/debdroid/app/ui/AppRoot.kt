@@ -81,6 +81,14 @@ fun AppRoot(initialRoute: String? = null) {
         }
     }
 
+    // apt 镜像变化时立即重写 sources.list（设置页改镜像即时生效，真机调试定位：
+    // 此前只写设置不重写配置，用户选 tuna 但 apt 仍走官方源）
+    LaunchedEffect(settings.aptMirrorId) {
+        if (app.rootfsInstaller.isInstalled()) {
+            runCatching { app.rootfsInstaller.configure(settings) }
+        }
+    }
+
     when (screen) {
         Screen.WIZARD -> WizardScreen(
             settings = settings,

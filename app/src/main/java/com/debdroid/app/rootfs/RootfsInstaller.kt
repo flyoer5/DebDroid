@@ -119,8 +119,8 @@ class RootfsInstaller(val context: Context) {
             appendLine("deb ${mirror.securityUrl} trixie-security main contrib non-free non-free-firmware")
         }
 
-        /** 中文环境首次默认清华镜像（FR-W4）。 */
+        /** 中文环境首次默认镜像（FR-W4）。tuna 实测对部分网络 403 不可靠（真机调试定位），改阿里云。 */
         fun defaultMirrorForLocale(locale: java.util.Locale = java.util.Locale.getDefault()): AptMirror =
-            if (locale.language.startsWith("zh")) AptMirror.TUNA else AptMirror.OFFICIAL
+            if (locale.language.startsWith("zh")) AptMirror.ALIYUN else AptMirror.OFFICIAL
     }
 }
