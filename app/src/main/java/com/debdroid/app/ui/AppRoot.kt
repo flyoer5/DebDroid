@@ -82,11 +82,10 @@ fun AppRoot(initialRoute: String? = null) {
     }
 
     // SSH 随会话自启（FR-H1）：首帧 LaunchedEffect 用默认设置（sshEnabled 默认 false，
-    // DataStore 未加载完）建会话时可能错过自启；设置加载完成后补启动。幂等（isRunning 检查）。
+    // DataStore 未加载完）建会话时可能错过自启；设置加载完成后补启动。
+    // 不依赖 sessions（冷启动时会话建立比设置加载慢，依赖会导致竞态错过）；幂等（isRunning 检查）。
     LaunchedEffect(settings.sshEnabled, settings.sshAutostart) {
-        if (settings.sshEnabled && settings.sshAutostart &&
-            sessions.isNotEmpty() && !app.sshManager.isRunning()
-        ) {
+        if (settings.sshEnabled && settings.sshAutostart && !app.sshManager.isRunning()) {
             app.sshManager.startAsync(settings)
         }
     }
