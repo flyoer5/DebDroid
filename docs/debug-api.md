@@ -62,4 +62,4 @@ curl http://<IP>:8710/api/diagnostics | jq .text
 - **`session/screen` 读不到 tmux 会话内的输出**：tmux 使用 alternate screen buffer，transcript 只含主缓冲。看命令输出请用 `/api/command`（一次性 proot 执行，不经过 tmux）。
 - **POST body 由 NanoHTTPD `parseBody` 读取**：只支持 POST（PUT 的 body 读不到，已改为 POST /api/settings）。
 - **存储权限**：`/sdcard` 读写需要 READ/WRITE_EXTERNAL_STORAGE 运行时权限（v2.0.3 起首次启动即请求）。未授权时文件 API 返回空/EPERM。
-- **SSH 密码认证在 proot 下不可用**（真机调试定位）：proot 环境里 sshd 的密码哈希验证（crypt/seccomp 沙箱与 ptrace 交互）失败，`su` 验证密码却正常；**公钥认证完整可用**。请用公钥登录：设置页填公钥 → 重启 SSH → `ssh -i ~/.ssh/id_ed25519 root@<手机IP> -p 8022`。v2.0.5 起 stop 会正确杀掉 sshd 进程（旧版 stop 只杀 sh 包装，sshd 残留占端口）。
+- **SSH 密码认证**：v2.0.5 及更早的 rootfs（apt 版 openssh）在 proot 下密码认证不可用——OpenSSH 的 seccomp sandbox 在 proot 的 ptrace 下使 `crypt()` 失败，且无法通过配置禁用（真机调试定位）。v2.0.6 起 rootfs 内置交叉编译的无 sandbox sshd（`--with-sandbox=none --with-privsep-path=/`，见 `tools/sshd-arm64/`），**密码与公钥认证均正常**。注意客户端无 TTY 时 sshpass 可能传不进密码（用 `SSH_ASKPASS`/`SSH_ASKPASS_REQUIRE=force`）。

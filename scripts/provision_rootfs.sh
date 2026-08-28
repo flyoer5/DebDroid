@@ -41,6 +41,14 @@ sudo chroot "$WORK/rfs" /usr/bin/env -i \
 
 sudo rm -f "$WORK/rfs/etc/resolv.conf"
 
+echo "[provision] 预置自定义 sshd（无 sandbox 交叉编译，proot 下密码认证可用）..."
+# 真机调试定位：apt 的 openssh 在 proot 下密码认证失败（seccomp sandbox 杀 crypt），
+# 用 --with-sandbox=none --with-privsep-path=/ 交叉编译版替换（见 tools/sshd-arm64/）。
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+sudo install -m 755 "$SCRIPT_DIR/../tools/sshd-arm64/sshd" "$WORK/rfs/usr/sbin/sshd"
+sudo install -d -m 755 "$WORK/rfs/usr/local/libexec"
+sudo install -m 755 "$SCRIPT_DIR/../tools/sshd-arm64/sshd-session" "$WORK/rfs/usr/local/libexec/sshd-session"
+
 echo "[provision] rootfs 解压后大小: $(sudo du -sh "$WORK/rfs" | cut -f1)"
 
 echo "[provision] repacking rootfs.tar.xz ..."

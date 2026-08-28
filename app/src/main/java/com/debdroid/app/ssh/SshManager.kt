@@ -80,6 +80,8 @@ class SshManager(
         val sshCfg = File(rootfs, "etc/ssh/sshd_config")
         sshCfg.parentFile?.mkdirs()
         runCatching { sshCfg.delete() } // 覆盖包管理器留下的文件/符号链接
+        // 注：无 UsePAM——rootfs 内置自定义 sshd（无 sandbox 交叉编译）不识别 UsePAM；
+        // HostKey 显式指定（编译版默认找 /usr/local/etc，真机调试定位）
         sshCfg.writeText(
             """
             Port ${settings.sshPort}
@@ -87,7 +89,7 @@ class SshManager(
             PermitRootLogin yes
             PasswordAuthentication yes
             PubkeyAuthentication yes
-            UsePAM no
+            HostKey /etc/ssh/ssh_host_ed25519_key
             PrintMotd no
             AcceptEnv LANG LC_*
             Subsystem sftp internal-sftp
