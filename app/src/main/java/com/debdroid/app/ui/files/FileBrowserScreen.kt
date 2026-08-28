@@ -297,6 +297,7 @@ fun FileBrowserScreen(
                     }
                     selection = emptySet()
                     toast = "已复制到对侧"
+                    refreshTick++
                 }) { Text("复制到对侧") }
                 TextButton(onClick = {
                     val sel = entries.filter { it.path in selection }
@@ -312,6 +313,7 @@ fun FileBrowserScreen(
                     }
                     selection = emptySet()
                     toast = "已移动到对侧"
+                    refreshTick++
                 }) { Text("移动到对侧") }
                 IconButton(onClick = { selection = emptySet() }) {
                     Icon(Icons.Filled.Close, contentDescription = "取消选择")
@@ -427,7 +429,13 @@ private fun FileRow(
             )
         }
         if (info.isDir) {
-            Text("★", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+            Text(
+                "★",
+                modifier = Modifier
+                    .clickable { onBookmark() }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            )
         }
     }
 }

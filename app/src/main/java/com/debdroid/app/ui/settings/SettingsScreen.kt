@@ -160,7 +160,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.useNerdFont,
-                            onCheckedChange = { change { it.copy(useNerdFont = it.useNerdFont) } },
+                            onCheckedChange = { change { it.copy(useNerdFont = !it.useNerdFont) } },
                         )
                     },
                 )
@@ -189,7 +189,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.tmuxAttach,
-                            onCheckedChange = { change { it.copy(tmuxAttach = it.tmuxAttach) } },
+                            onCheckedChange = { change { it.copy(tmuxAttach = !it.tmuxAttach) } },
                         )
                     },
                 )
@@ -241,7 +241,7 @@ fun SettingsScreen(
                         trailing = {
                             Switch(
                                 checked = settings.sshListenAll,
-                                onCheckedChange = { change { it.copy(sshListenAll = it.sshListenAll) } },
+                                onCheckedChange = { change { it.copy(sshListenAll = !it.sshListenAll) } },
                             )
                         },
                     )
@@ -267,7 +267,7 @@ fun SettingsScreen(
                         trailing = {
                             Switch(
                                 checked = settings.sshAutostart,
-                                onCheckedChange = { change { it.copy(sshAutostart = it.sshAutostart) } },
+                                onCheckedChange = { change { it.copy(sshAutostart = !it.sshAutostart) } },
                             )
                         },
                     )
@@ -299,7 +299,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepForeground,
-                            onCheckedChange = { change { it.copy(keepForeground = it.keepForeground) } },
+                            onCheckedChange = { change { it.copy(keepForeground = !it.keepForeground) } },
                         )
                     },
                 )
@@ -311,7 +311,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepWakelock,
-                            onCheckedChange = { change { it.copy(keepWakelock = it.keepWakelock) } },
+                            onCheckedChange = { change { it.copy(keepWakelock = !it.keepWakelock) } },
                         )
                     },
                 )
@@ -323,7 +323,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepBatteryWhitelist,
-                            onCheckedChange = { change { it.copy(keepBatteryWhitelist = it.keepBatteryWhitelist) } },
+                            onCheckedChange = { change { it.copy(keepBatteryWhitelist = !it.keepBatteryWhitelist) } },
                         )
                     },
                 )
@@ -335,7 +335,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepBoot,
-                            onCheckedChange = { change { it.copy(keepBoot = it.keepBoot) } },
+                            onCheckedChange = { change { it.copy(keepBoot = !it.keepBoot) } },
                         )
                     },
                 )
@@ -347,7 +347,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepRestore,
-                            onCheckedChange = { change { it.copy(keepRestore = it.keepRestore) } },
+                            onCheckedChange = { change { it.copy(keepRestore = !it.keepRestore) } },
                         )
                     },
                 )

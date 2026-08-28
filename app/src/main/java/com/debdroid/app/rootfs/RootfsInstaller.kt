@@ -93,7 +93,7 @@ class RootfsInstaller(val context: Context) {
 
     /**
      * 写 apt sources.list（FR-C1/FR-W4）与 resolv.conf（FR-C2）。
-     * 中文环境 + 未手动选择 → 默认清华 TUNA。
+     * 中文环境 + 未手动选择 → 默认阿里云（tuna 对部分网络 403，真机调试定位）。
      */
     fun configure(settings: AppSettings) {
         val mirror = AptMirror.fromId(settings.aptMirrorId)
