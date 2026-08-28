@@ -81,6 +81,16 @@ fun AppRoot(initialRoute: String? = null) {
         }
     }
 
+    // SSH 随会话自启（FR-H1）：首帧 LaunchedEffect 用默认设置（sshEnabled 默认 false，
+    // DataStore 未加载完）建会话时可能错过自启；设置加载完成后补启动。幂等（isRunning 检查）。
+    LaunchedEffect(settings.sshEnabled, settings.sshAutostart) {
+        if (settings.sshEnabled && settings.sshAutostart &&
+            sessions.isNotEmpty() && !app.sshManager.isRunning()
+        ) {
+            app.sshManager.startAsync(settings)
+        }
+    }
+
     // apt 镜像变化时立即重写 sources.list（设置页改镜像即时生效，真机调试定位：
     // 此前只写设置不重写配置，用户选 tuna 但 apt 仍走官方源）
     LaunchedEffect(settings.aptMirrorId) {
