@@ -232,7 +232,9 @@ public final class TerminalSession extends TerminalOutput {
 
     /** Finish this terminal session by sending SIGKILL to the shell. */
     public void finishIfRunning() {
-        if (isRunning()) {
+        // mShellPid==0 = 会话已创建但从未启动（无子进程）——isRunning() 对 0 返回 true，
+        // 若直接 Os.kill(0, SIGKILL) 会杀调用方进程组即整个 app（审查定位 F1）。
+        if (isRunning() && mShellPid > 0) {
             try {
                 Os.kill(mShellPid, OsConstants.SIGKILL);
             } catch (ErrnoException e) {

@@ -147,6 +147,7 @@ fun TerminalScreen(
                         },
                         selected = i == activeIndex,
                         onClick = {
+                            extraKeysState.clearToggles() // 粘滞 CTRL/ALT 不串到新会话
                             onSelectSession(i)
                             scope.launch { drawerState.close() }
                         },

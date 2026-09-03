@@ -96,7 +96,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.set_appearance).replace("外观", "设置")) },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     TextButton(onClick = onBack) { Text("‹ 返回") }
                 },
@@ -237,7 +237,7 @@ fun SettingsScreen(
                 item {
                     SettingsRow(
                         title = stringResource(R.string.ssh_listen),
-                        subtitle = if (settings.sshListenAll) "0.0.0.0（所有网卡）" else "127.0.0.1（仅局域网）",
+                        subtitle = if (settings.sshListenAll) "0.0.0.0（允许局域网访问）" else "127.0.0.1（仅本机）",
                         trailing = {
                             Switch(
                                 checked = settings.sshListenAll,

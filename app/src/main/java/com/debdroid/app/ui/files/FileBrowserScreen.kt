@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,6 +105,8 @@ fun FileBrowserScreen(
 
     // 目录 / 排序 / 刷新标记变化时加载；首次进入也触发
     androidx.compose.runtime.LaunchedEffect(currentDir.path, sortBy, descending, refreshTick) {
+        // 目录切换/刷新后清空多选，避免跨目录残留误删（selection 只作用于当前目录）
+        selection = emptySet()
         loading = true
         loadError = null
         val result = withContext(Dispatchers.IO) {
@@ -285,35 +288,45 @@ fun FileBrowserScreen(
                 }
                 TextButton(onClick = {
                     val sel = entries.filter { it.path in selection }
+                    selection = emptySet()
                     scope.launch(Dispatchers.IO) {
                         val src = sel.firstOrNull()?.let { File(it.path).parentFile }
+                        var failed = 0
                         if (src != null) {
                             val dst = if (src == externalRoot) internalRoot else externalRoot
                             sel.forEach { info ->
                                 val f = File(info.path)
-                                runCatching { FsOps.copyRecursive(f, File(dst, f.name)) }
+                                if (runCatching { FsOps.copyRecursive(f, File(dst, f.name)) }.isFailure) failed++
                             }
                         }
+                        withContext(Dispatchers.Main) {
+                            toast = if (sel.isEmpty()) "未选择文件"
+                            else if (failed == 0) "已复制到对侧（${sel.size} 项）"
+                            else "复制完成，${failed}/${sel.size} 项失败"
+                            refreshTick++
+                        }
                     }
-                    selection = emptySet()
-                    toast = "已复制到对侧"
-                    refreshTick++
                 }) { Text("复制到对侧") }
                 TextButton(onClick = {
                     val sel = entries.filter { it.path in selection }
+                    selection = emptySet()
                     scope.launch(Dispatchers.IO) {
                         val src = sel.firstOrNull()?.let { File(it.path).parentFile }
+                        var failed = 0
                         if (src != null) {
                             val dst = if (src == externalRoot) internalRoot else externalRoot
                             sel.forEach { info ->
                                 val f = File(info.path)
-                                runCatching { FsOps.moveRecursive(f, File(dst, f.name)) }
+                                if (runCatching { FsOps.moveRecursive(f, File(dst, f.name)) }.isFailure) failed++
                             }
                         }
+                        withContext(Dispatchers.Main) {
+                            toast = if (sel.isEmpty()) "未选择文件"
+                            else if (failed == 0) "已移动到对侧（${sel.size} 项）"
+                            else "移动完成，${failed}/${sel.size} 项失败"
+                            refreshTick++
+                        }
                     }
-                    selection = emptySet()
-                    toast = "已移动到对侧"
-                    refreshTick++
                 }) { Text("移动到对侧") }
                 IconButton(onClick = { selection = emptySet() }) {
                     Icon(Icons.Filled.Close, contentDescription = "取消选择")
@@ -333,9 +346,16 @@ fun FileBrowserScreen(
                     val sel = selection
                     selection = emptySet()
                     scope.launch(Dispatchers.IO) {
-                        sel.forEach { path -> runCatching { File(path).deleteRecursively() } }
+                        var failed = 0
+                        sel.forEach { path ->
+                            if (runCatching { File(path).deleteRecursively() }.isFailure) failed++
+                        }
+                        withContext(Dispatchers.Main) {
+                            toast = if (failed == 0) "已删除 ${sel.size} 项"
+                            else "删除完成，${failed}/${sel.size} 项失败"
+                            refreshTick++
+                        }
                     }
-                    refreshTick++
                 }) { Text("删除", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
@@ -386,7 +406,11 @@ private fun FileRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            // 长按 = 进入多选模式并选中该项（唯一的选择模式入口；selection 非空即显示复选框/批操作栏）
+            .combinedClickable(
+                onClick = { onClick() },
+                onLongClick = { onToggleSelect(info.path) },
+            )
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

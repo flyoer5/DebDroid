@@ -24,6 +24,7 @@ import com.debdroid.app.ui.settings.SettingsScreen
 import com.debdroid.app.ui.terminal.TerminalScreen
 import com.debdroid.app.ui.wizard.WizardScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,8 +82,12 @@ fun AppRoot(initialRoute: String? = null) {
     // 重启后自动恢复会话（FR-S4 / keepRestore）：rootfs 已装、直接进终端屏时无会话则补建。
     // 仅组合首帧执行一次，避免与 wizard 完成后的手动调用双触发。
     LaunchedEffect(Unit) {
-        if (screen == Screen.TERMINAL && sessions.isEmpty() && settings.keepRestore) {
-            startFirstSession()
+        if (screen == Screen.TERMINAL && sessions.isEmpty()) {
+            // keepRestore 判定也必须用 DataStore 真实值：首帧默认 keepRestore=true，
+            // 会让已关闭"自动恢复"的用户在冷启动仍被建会话（审查定位 M1，与下方
+            // startFirstSession 的 settings.first() 同一类竞态）。
+            val s = app.settingsRepository.settings.first()
+            if (s.keepRestore) startFirstSession()
         }
     }
 
@@ -211,9 +216,16 @@ fun AppRoot(initialRoute: String? = null) {
                     withContext(Dispatchers.IO) { app.sshManager.stopBlocking() }
                 },
                 onResetRootfs = {
-                    app.sshManager.stopAsync()
-                    app.sessionManager.closeAll()
-                    screen = Screen.WIZARD
+                    // 恢复出厂（FR-C2）：停 SSH → 关会话 → 等 kill 线程执行 → 删 rootfs → 进向导。
+                    // 此前只停+关+切向导，wipe() 从不调用，向导重装是叠加而非出厂（审查定位 F2）。
+                    scope.launch(Dispatchers.IO) {
+                        app.sshManager.stopAsync()
+                        app.sessionManager.closeAll()
+                        delay(600) // closeAll 的 SIGKILL 在后台线程执行，稍候确保进程退出
+                        runCatching { app.rootfsInstaller.wipe() }
+                            .onFailure { e -> Log.e("DebDroid", "wipe failed", e) }
+                        withContext(Dispatchers.Main) { screen = Screen.WIZARD }
+                    }
                 },
                 onExportDiagnostics = { exportDiagnostics(context, settings, app, sshStatus) },
                 onBack = { screen = Screen.TERMINAL },

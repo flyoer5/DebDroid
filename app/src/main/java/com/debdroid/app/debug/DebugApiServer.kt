@@ -292,7 +292,7 @@ class DebugApiServer(
         val settings = settingsSnapshot()
         return JSONObject()
             .put("rootfsInstalled", rootfsInstaller.isInstalled())
-            .put("prootPresent", File(rootfsInstaller.context.filesDir, "proot").exists())
+            .put("prootPresent", File(File(rootfsInstaller.context.filesDir, "opt/proot"), "bin/proot").exists())
             .put("sessions", sessionManager.sessions.value.size)
             .put("ssh", sshStatusJson(sshManager.status.value))
             .put("settings", settingsJson(settings))
@@ -319,6 +319,7 @@ class DebugApiServer(
         .put("sshPassword", s.sshPassword)
         .put("sshAuthorizedKeys", s.sshAuthorizedKeys)
         .put("sshAutostart", s.sshAutostart)
+        .put("fileBookmarks", s.fileBookmarks)
         .put("debugApiEnabled", s.debugApiEnabled)
 
     private fun sshStatusJson(s: SshStatus): JSONObject = when (s) {
@@ -358,6 +359,7 @@ internal fun AppSettings.applyJson(obj: JSONObject): AppSettings {
     if (obj.has("sshPassword")) s = s.copy(sshPassword = obj.getString("sshPassword"))
     if (obj.has("sshAuthorizedKeys")) s = s.copy(sshAuthorizedKeys = obj.getString("sshAuthorizedKeys"))
     if (obj.has("sshAutostart")) s = s.copy(sshAutostart = obj.getBoolean("sshAutostart"))
+    if (obj.has("fileBookmarks")) s = s.copy(fileBookmarks = obj.getString("fileBookmarks"))
     if (obj.has("debugApiEnabled")) s = s.copy(debugApiEnabled = obj.getBoolean("debugApiEnabled"))
     return s
 }

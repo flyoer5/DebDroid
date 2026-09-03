@@ -64,6 +64,7 @@ fun TextEditorScreen(
     var text by remember { mutableStateOf("") }
     var loaded by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf<String?>(null) }
+    var saveErrorMsg by remember { mutableStateOf<String?>(null) }
     var readOnly by remember { mutableStateOf(false) }
     var dirty by remember { mutableStateOf(false) }
     var pendingBack by remember { mutableStateOf(false) }
@@ -96,6 +97,15 @@ fun TextEditorScreen(
     }
 
     fun save() {
+        if (readOnly) {
+            saveErrorMsg = "只读模式，无法保存"
+            return
+        }
+        if (filePath != null && !loaded) {
+            // 读失败/未加载完成：禁止保存，防空内容覆盖原文件（审查定位 M5）
+            saveErrorMsg = "文件读取失败，无法保存"
+            return
+        }
         if (filePath == null) {
             // 无路径时展示保存对话框简化版：直接按文件名存到 Download
             val target = File(android.os.Environment.getExternalStoragePublicDirectory(
@@ -104,13 +114,13 @@ fun TextEditorScreen(
             scope.launch(Dispatchers.IO) {
                 runCatching { target.parentFile?.mkdirs(); target.writeText(text) }
                     .onSuccess { dirty = false; savedToast = true }
-                    .onFailure { e -> loadError = e.message }
+                    .onFailure { e -> saveErrorMsg = e.message }
             }
         } else {
             scope.launch(Dispatchers.IO) {
                 runCatching { File(filePath!!).writeText(text) }
                     .onSuccess { dirty = false; savedToast = true }
-                    .onFailure { e -> loadError = e.message }
+                    .onFailure { e -> saveErrorMsg = e.message }
             }
         }
     }
@@ -126,6 +136,10 @@ fun TextEditorScreen(
     if (loadError != null) {
         android.widget.Toast.makeText(context, "读取失败：$loadError", android.widget.Toast.LENGTH_LONG).show()
         loadError = null
+    }
+    if (saveErrorMsg != null) {
+        android.widget.Toast.makeText(context, "保存失败：$saveErrorMsg", android.widget.Toast.LENGTH_LONG).show()
+        saveErrorMsg = null
     }
 
     val lineCount = text.count { it == '\n' } + 1
@@ -148,21 +162,21 @@ fun TextEditorScreen(
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = {
-                if (undoStack.isNotEmpty()) {
+                if (!readOnly && undoStack.isNotEmpty()) {
                     redoStack = redoStack.plus(text).let { ArrayDeque(it) }
                     text = undoStack.last()
                     undoStack = undoStack.dropLast(1).let { ArrayDeque(it) }
                 }
-            }, enabled = undoStack.isNotEmpty()) {
+            }, enabled = !readOnly && undoStack.isNotEmpty()) {
                 Text("↶", style = MaterialTheme.typography.titleMedium) // 撤销
             }
             IconButton(onClick = {
-                if (redoStack.isNotEmpty()) {
+                if (!readOnly && redoStack.isNotEmpty()) {
                     undoStack = undoStack.plus(text).let { ArrayDeque(it) }
                     text = redoStack.last()
                     redoStack = redoStack.dropLast(1).let { ArrayDeque(it) }
                 }
-            }, enabled = redoStack.isNotEmpty()) {
+            }, enabled = !readOnly && redoStack.isNotEmpty()) {
                 Text("↷", style = MaterialTheme.typography.titleMedium) // 重做
             }
             IconButton(onClick = { readOnly = !readOnly }) {

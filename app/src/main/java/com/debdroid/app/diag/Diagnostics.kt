@@ -48,7 +48,7 @@ object Diagnostics {
         if (rootfs.exists()) {
             appendLine("rootfs 占用: ${FsOps.humanSize(rootfs.length())} (${rootfs.length()} bytes)")
         }
-        val proot = File(rootfsInstaller.context.filesDir, "proot")
+        val proot = File(File(rootfsInstaller.context.filesDir, "opt/proot"), "bin/proot")
         appendLine("proot 运行时: ${proot.exists()}")
         appendLine()
 

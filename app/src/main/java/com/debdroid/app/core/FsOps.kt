@@ -39,8 +39,10 @@ object FsOps {
 
     /** 读取目录（含 lstat 元数据），失败抛异常由调用方转 UiState.Error。 */
     fun listDir(dir: File): List<FileInfo> {
+        // listFiles()==null = 无权限/目录不存在——抛异常而非当空目录（否则 UI 误报"此文件夹为空"）
+        val children = dir.listFiles() ?: throw java.io.IOException("无法读取目录（无权限或不存在）")
         val out = ArrayList<FileInfo>()
-        dir.listFiles()?.forEach { f ->
+        children.forEach { f ->
             runCatching {
                 val st = Os.lstat(f.path)
                 out += FileInfo(

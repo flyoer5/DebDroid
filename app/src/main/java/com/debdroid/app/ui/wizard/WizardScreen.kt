@@ -59,6 +59,8 @@ fun WizardScreen(
         scope.launch {
             phase = Phase.INSTALLING
             error = null
+            progress = 0f
+            stage = installingLabel
             runCatching {
                 install(settings) { p ->
                     progress = p.fraction
@@ -143,7 +145,7 @@ fun WizardScreen(
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
-                        "⚠ ${stringResource(R.string.wizard_error_title)}",
+                        stringResource(R.string.wizard_error_title),
                         color = scheme.error,
                         style = MaterialTheme.typography.labelLarge,
                     )
