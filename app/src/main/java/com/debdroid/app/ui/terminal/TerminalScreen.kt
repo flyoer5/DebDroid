@@ -278,6 +278,7 @@ fun TerminalScreen(
                         factory = { ctx ->
                             TerminalView(ctx, null).apply {
                                 lastTerminalView = this
+                                activeTerminalView = this
                                 setTerminalViewClient(
                                     DroidTerminalViewClient(this, extraKeysState, onFontSizeDelta)
                                 )
@@ -327,7 +328,10 @@ fun TerminalScreen(
     }
 
     DisposableEffect(Unit) {
-        onDispose { lastTerminalView = null }
+        onDispose {
+            lastTerminalView = null
+            activeTerminalView = null
+        }
     }
 }
 
@@ -510,6 +514,7 @@ private class DroidTerminalViewClient(
 
     override fun onEmulatorSet() {
         lastTerminalView = view
+        activeTerminalView = view
     }
 
     override fun logError(tag: String, message: String) { Log.e(tag, message) }
