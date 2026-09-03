@@ -110,7 +110,7 @@ fun AppRoot(initialRoute: String? = null) {
                 withContext(Dispatchers.IO) { app.rootfsInstaller.extract(onProgress) }
             },
             onFinished = {
-                // 中文环境首次默认清华镜像（FR-W4）；随后写入 apt 源/resolv
+                // 中文环境首次默认阿里云镜像（FR-W4，tuna 对部分网络 403）；随后写入 apt 源/resolv
                 scope.launch(Dispatchers.IO) {
                     runCatching {
                         if (java.util.Locale.getDefault().language.startsWith("zh") &&
