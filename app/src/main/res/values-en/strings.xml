@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DebDroid</string>
-    <string name="wizard_tagline">Debian 13 · no root · image bundled</string>
     <string name="wizard_install">Install Debian</string>
     <string name="wizard_enter">Open terminal ▸</string>
     <string name="wizard_done_title">✓ Installed</string>

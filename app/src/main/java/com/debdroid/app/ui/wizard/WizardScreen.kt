@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.debdroid.app.R
 import com.debdroid.app.prefs.AppSettings
@@ -108,12 +107,6 @@ fun WizardScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontFamily = FontFamily.Monospace,
         )
-        Text(
-            stringResource(R.string.wizard_tagline),
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
         Spacer(Modifier.height(16.dp))
 
         // 步骤指示：3 点
@@ -140,12 +133,6 @@ fun WizardScreen(
                     Text(stage, style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(R.string.wizard_need_space),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = scheme.onSurfaceVariant,
-                    )
                 }
             }
 

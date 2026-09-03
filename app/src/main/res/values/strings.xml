@@ -4,7 +4,6 @@
     <string name="app_name">DebDroid</string>
 
     <!-- 向导 -->
-    <string name="wizard_tagline">Debian 13 · 免 root · 镜像内置</string>
     <string name="wizard_install">安装 Debian</string>
     <string name="wizard_enter">进入终端 ▸</string>
     <string name="wizard_installing">解压内置镜像</string>
@@ -14,7 +13,6 @@
     <string name="wizard_done_desc">Debian 13 已就绪</string>
     <string name="wizard_error_title">⚠ 安装失败</string>
     <string name="wizard_retry">重试</string>
-    <string name="wizard_need_space">需约 400MB 空闲空间 · 全程离线</string>
 
     <!-- 终端 -->
     <string name="term_new_session">新建会话</string>
