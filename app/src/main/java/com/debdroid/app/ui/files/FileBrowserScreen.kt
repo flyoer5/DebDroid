@@ -89,8 +89,25 @@ fun FileBrowserScreen(
     var sortMenu by remember { mutableStateOf(false) }
     // 书签持久化于 settings.fileBookmarks（newline 分隔路径）；未设置过时默认内部 rootfs
     var bookmarkDirs by remember { mutableStateOf<List<File>>(emptyList()) }
-    var bookmarksLoaded by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
+
+    val settingsRepo = com.debdroid.app.DebDroidApp.instance.settingsRepository
+
+    // 读取持久化书签（L2：此前 remember 内存态，离开文件屏即丢）
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val s = settingsRepo.settings.first()
+        bookmarkDirs = if (s.fileBookmarks.isBlank()) listOf(internalRoot)
+        else s.fileBookmarks.split('\n').filter { it.isNotBlank() }.map { File(it) }
+    }
+
+    // 书签变更即写回——用 appScope（进程级），用户立即返回上一屏也不丢写回
+    fun persistBookmarks(list: List<File>) {
+        bookmarkDirs = list
+        val serialized = list.joinToString("\n") { f -> f.path }
+        com.debdroid.app.DebDroidApp.instance.appScope.launch {
+            settingsRepo.update { it.copy(fileBookmarks = serialized) }
+        }
+    }
 
     val hasPermission = ContextCompat.checkSelfPermission(
         context, Manifest.permission.READ_EXTERNAL_STORAGE
@@ -105,22 +122,6 @@ fun FileBrowserScreen(
         androidx.compose.runtime.LaunchedEffect(Unit) {
             permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-    }
-
-    val settingsRepo = com.debdroid.app.DebDroidApp.instance.settingsRepository
-
-    // 读取持久化书签（L2：此前 remember 内存态，离开文件屏即丢）
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        val s = settingsRepo.settings.first()
-        bookmarkDirs = if (s.fileBookmarks.isBlank()) listOf(internalRoot)
-        else s.fileBookmarks.split('\n').filter { it.isNotBlank() }.map { File(it) }
-        bookmarksLoaded = true
-    }
-
-    // 书签变更即写回持久层（含移除/新增/初始默认）
-    androidx.compose.runtime.LaunchedEffect(bookmarkDirs, bookmarksLoaded) {
-        if (!bookmarksLoaded) return@LaunchedEffect
-        settingsRepo.update { it.copy(fileBookmarks = bookmarkDirs.joinToString("\n") { f -> f.path }) }
     }
 
     // 目录 / 排序 / 刷新标记变化时加载；首次进入也触发
@@ -230,7 +231,7 @@ fun FileBrowserScreen(
                 bookmarkDirs.forEach { dir ->
                     NavItem("★ ${dir.name}", dir, onLongClick = {
                         toast = "已移除书签：${dir.name}"
-                        bookmarkDirs = bookmarkDirs - dir
+                        persistBookmarks(bookmarkDirs - dir)
                     }) {
                         dirStack = dirStack + currentDir
                         currentDir = dir
@@ -281,12 +282,12 @@ fun FileBrowserScreen(
                                 onBookmark = {
                                     if (f.isDir) {
                                         val dir = File(f.path)
-                                        bookmarkDirs = if (dir in bookmarkDirs) {
+                                        if (dir in bookmarkDirs) {
                                             toast = "已取消书签"
-                                            bookmarkDirs - dir
+                                            persistBookmarks(bookmarkDirs - dir)
                                         } else {
                                             toast = "已加书签 ★"
-                                            bookmarkDirs + dir
+                                            persistBookmarks(bookmarkDirs + dir)
                                         }
                                     }
                                     Unit

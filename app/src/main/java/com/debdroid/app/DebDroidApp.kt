@@ -22,6 +22,15 @@ class DebDroidApp : Application() {
     lateinit var sshManager: SshManager
     lateinit var sessionManager: SessionManager
 
+    /**
+     * 应用级协程作用域（进程存活即活）：供 UI 组件把"离开页面也不能丢"的持久化
+     * 写入（如文件书签）脱离组合生命周期执行——rememberCoroutineScope/LaunchedEffect
+     * 会在用户立即返回上一屏时取消未完成的写回。
+     */
+    val appScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
+    )
+
     private var debugApiScope: kotlinx.coroutines.CoroutineScope? = null
     private var debugApi: com.debdroid.app.debug.DebugApiServer? = null
 
