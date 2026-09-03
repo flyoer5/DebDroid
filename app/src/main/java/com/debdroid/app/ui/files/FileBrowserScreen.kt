@@ -293,7 +293,11 @@ fun FileBrowserScreen(
                         val src = sel.firstOrNull()?.let { File(it.path).parentFile }
                         var failed = 0
                         if (src != null) {
-                            val dst = if (src == externalRoot) internalRoot else externalRoot
+                            // "对侧"= 外部存储 ↔ 内部 rootfs：源在 externalRoot 树内（含子目录）→ 拷进内部；
+                            // 否则（源在内部 rootfs）→ 拷到外部根。此前只看 src==externalRoot，
+                            // 从子目录（如 Download）复制会错误落到外部根（审查+真机定位）。
+                            val inExternal = src.path == externalRoot.path || src.path.startsWith("${externalRoot.path}/")
+                            val dst = if (inExternal) internalRoot else externalRoot
                             sel.forEach { info ->
                                 val f = File(info.path)
                                 if (runCatching { FsOps.copyRecursive(f, File(dst, f.name)) }.isFailure) failed++
@@ -314,7 +318,11 @@ fun FileBrowserScreen(
                         val src = sel.firstOrNull()?.let { File(it.path).parentFile }
                         var failed = 0
                         if (src != null) {
-                            val dst = if (src == externalRoot) internalRoot else externalRoot
+                            // "对侧"= 外部存储 ↔ 内部 rootfs：源在 externalRoot 树内（含子目录）→ 拷进内部；
+                            // 否则（源在内部 rootfs）→ 拷到外部根。此前只看 src==externalRoot，
+                            // 从子目录（如 Download）复制会错误落到外部根（审查+真机定位）。
+                            val inExternal = src.path == externalRoot.path || src.path.startsWith("${externalRoot.path}/")
+                            val dst = if (inExternal) internalRoot else externalRoot
                             sel.forEach { info ->
                                 val f = File(info.path)
                                 if (runCatching { FsOps.moveRecursive(f, File(dst, f.name)) }.isFailure) failed++
