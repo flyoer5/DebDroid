@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.debdroid.app.ui.theme.TerminalColors
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -59,7 +60,12 @@ fun TextEditorScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val scheme = TerminalColors.byId("dracula") // 编辑器配色跟随终端默认
+    // 编辑器配色跟随全局设置（L5：此前硬编码 dracula，用户在设置选配色后编辑器仍不变）
+    var scheme by remember { mutableStateOf(TerminalColors.byId("dracula")) }
+    LaunchedEffect(Unit) {
+        val id = com.debdroid.app.DebDroidApp.instance.settingsRepository.settings.first().colorSchemeId
+        scheme = TerminalColors.byId(id)
+    }
 
     var text by remember { mutableStateOf("") }
     var loaded by remember { mutableStateOf(false) }
@@ -71,6 +77,8 @@ fun TextEditorScreen(
     var savedToast by remember { mutableStateOf(false) }
     var undoStack by remember { mutableStateOf(ArrayDeque<String>()) }
     var redoStack by remember { mutableStateOf(ArrayDeque<String>()) }
+    // 磁盘/加载基准内容：undo/redo 撤回到与之一致时 dirty 复位（M7）
+    var lastSavedText by remember { mutableStateOf("") }
     var fileName by remember { mutableStateOf(filePath?.substringAfterLast('/') ?: "untitled.txt") }
 
     LaunchedEffect(filePath) {
@@ -80,6 +88,7 @@ fun TextEditorScreen(
             }
             result.onSuccess {
                 text = it
+                lastSavedText = it
                 loaded = true
             }.onFailure { e -> loadError = e.message }
         } else {
@@ -113,13 +122,13 @@ fun TextEditorScreen(
             ), fileName)
             scope.launch(Dispatchers.IO) {
                 runCatching { target.parentFile?.mkdirs(); target.writeText(text) }
-                    .onSuccess { dirty = false; savedToast = true }
+                    .onSuccess { dirty = false; lastSavedText = text; savedToast = true }
                     .onFailure { e -> saveErrorMsg = e.message }
             }
         } else {
             scope.launch(Dispatchers.IO) {
                 runCatching { File(filePath!!).writeText(text) }
-                    .onSuccess { dirty = false; savedToast = true }
+                    .onSuccess { dirty = false; lastSavedText = text; savedToast = true }
                     .onFailure { e -> saveErrorMsg = e.message }
             }
         }
@@ -166,6 +175,7 @@ fun TextEditorScreen(
                     redoStack = redoStack.plus(text).let { ArrayDeque(it) }
                     text = undoStack.last()
                     undoStack = undoStack.dropLast(1).let { ArrayDeque(it) }
+                    dirty = text != lastSavedText // 全撤回到与磁盘一致时复位（M7）
                 }
             }, enabled = !readOnly && undoStack.isNotEmpty()) {
                 Text("↶", style = MaterialTheme.typography.titleMedium) // 撤销
@@ -175,6 +185,7 @@ fun TextEditorScreen(
                     undoStack = undoStack.plus(text).let { ArrayDeque(it) }
                     text = redoStack.last()
                     redoStack = redoStack.dropLast(1).let { ArrayDeque(it) }
+                    dirty = text != lastSavedText
                 }
             }, enabled = !readOnly && redoStack.isNotEmpty()) {
                 Text("↷", style = MaterialTheme.typography.titleMedium) // 重做

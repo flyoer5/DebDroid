@@ -154,7 +154,7 @@ fun TerminalScreen(
                         badge = {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(40.dp)
                                     .clickable { onCloseSession(i) },
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -434,7 +434,7 @@ private fun ExtraKeyButton(
     val accent = Color(0xFFBD93F9)
     Box(
         modifier = modifier
-            .heightIn(min = 26.dp)
+            .heightIn(min = 34.dp)
             .clip(shape)
             .background(backgroundColor)
             .border(

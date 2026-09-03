@@ -160,7 +160,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.useNerdFont,
-                            onCheckedChange = { change { it.copy(useNerdFont = !it.useNerdFont) } },
+                            onCheckedChange = { checked -> change { it.copy(useNerdFont = checked) } },
                         )
                     },
                 )
@@ -189,7 +189,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.tmuxAttach,
-                            onCheckedChange = { change { it.copy(tmuxAttach = !it.tmuxAttach) } },
+                            onCheckedChange = { checked -> change { it.copy(tmuxAttach = checked) } },
                         )
                     },
                 )
@@ -204,6 +204,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.sshEnabled,
+                            enabled = !busy, // 安装/启动进行中禁点，防并发 install/start（M10）
                             onCheckedChange = { enabled ->
                                 change { it.copy(sshEnabled = enabled) }
                                 if (enabled) {
@@ -241,7 +242,7 @@ fun SettingsScreen(
                         trailing = {
                             Switch(
                                 checked = settings.sshListenAll,
-                                onCheckedChange = { change { it.copy(sshListenAll = !it.sshListenAll) } },
+                                onCheckedChange = { checked -> change { it.copy(sshListenAll = checked) } },
                             )
                         },
                     )
@@ -267,7 +268,7 @@ fun SettingsScreen(
                         trailing = {
                             Switch(
                                 checked = settings.sshAutostart,
-                                onCheckedChange = { change { it.copy(sshAutostart = !it.sshAutostart) } },
+                                onCheckedChange = { checked -> change { it.copy(sshAutostart = checked) } },
                             )
                         },
                     )
@@ -278,8 +279,13 @@ fun SettingsScreen(
                             onClick = {
                                 scope.launch {
                                     busy = true
-                                    onSshApply()
-                                    onSshStart()?.let { toast = it }
+                                    val applied = onSshApply()
+                                    // apply 失败则中断，不继续 start（M10：此前结果被丢弃照样报启动成功）
+                                    if (!applied) {
+                                        toast = "配置应用失败，未启动 SSH"
+                                    } else {
+                                        onSshStart()?.let { toast = it }
+                                    }
                                     busy = false
                                 }
                             },
@@ -299,7 +305,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepForeground,
-                            onCheckedChange = { change { it.copy(keepForeground = !it.keepForeground) } },
+                            onCheckedChange = { checked -> change { it.copy(keepForeground = checked) } },
                         )
                     },
                 )
@@ -311,7 +317,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepWakelock,
-                            onCheckedChange = { change { it.copy(keepWakelock = !it.keepWakelock) } },
+                            onCheckedChange = { checked -> change { it.copy(keepWakelock = checked) } },
                         )
                     },
                 )
@@ -323,7 +329,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepBatteryWhitelist,
-                            onCheckedChange = { change { it.copy(keepBatteryWhitelist = !it.keepBatteryWhitelist) } },
+                            onCheckedChange = { checked -> change { it.copy(keepBatteryWhitelist = checked) } },
                         )
                     },
                 )
@@ -335,7 +341,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepBoot,
-                            onCheckedChange = { change { it.copy(keepBoot = !it.keepBoot) } },
+                            onCheckedChange = { checked -> change { it.copy(keepBoot = checked) } },
                         )
                     },
                 )
@@ -347,7 +353,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = settings.keepRestore,
-                            onCheckedChange = { change { it.copy(keepRestore = !it.keepRestore) } },
+                            onCheckedChange = { checked -> change { it.copy(keepRestore = checked) } },
                         )
                     },
                 )
@@ -430,7 +436,14 @@ fun SettingsScreen(
             initial = settings.sshPort.toString(),
             range = 1024..65535,
             onDismiss = { portDlg = false },
-            onConfirm = { value -> change { it.copy(sshPort = value) }; portDlg = false },
+            onConfirm = { value ->
+                change { it.copy(sshPort = value) }
+                // L9：运行中改端口 sshd 不热加载——提示重启才生效
+                if (value != settings.sshPort && sshStatus is SshStatus.Running) {
+                    toast = "SSH 运行中：新端口在重启 SSH 后生效"
+                }
+                portDlg = false
+            },
         )
     }
     if (passwdDlg) {

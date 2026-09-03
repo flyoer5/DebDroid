@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,7 @@ import com.debdroid.app.core.FsOps
 import com.debdroid.app.core.FsOps.FileInfo
 import com.debdroid.app.core.FsOps.SortBy
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -85,7 +87,9 @@ fun FileBrowserScreen(
     var selection by remember { mutableStateOf<Set<String>>(emptySet()) }
     var deleteDlg by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
-    var bookmarkDirs by remember { mutableStateOf(listOf(internalRoot)) }
+    // 书签持久化于 settings.fileBookmarks（newline 分隔路径）；未设置过时默认内部 rootfs
+    var bookmarkDirs by remember { mutableStateOf<List<File>>(emptyList()) }
+    var bookmarksLoaded by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
 
     val hasPermission = ContextCompat.checkSelfPermission(
@@ -101,6 +105,22 @@ fun FileBrowserScreen(
         androidx.compose.runtime.LaunchedEffect(Unit) {
             permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+    }
+
+    val settingsRepo = com.debdroid.app.DebDroidApp.instance.settingsRepository
+
+    // 读取持久化书签（L2：此前 remember 内存态，离开文件屏即丢）
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val s = settingsRepo.settings.first()
+        bookmarkDirs = if (s.fileBookmarks.isBlank()) listOf(internalRoot)
+        else s.fileBookmarks.split('\n').filter { it.isNotBlank() }.map { File(it) }
+        bookmarksLoaded = true
+    }
+
+    // 书签变更即写回持久层（含移除/新增/初始默认）
+    androidx.compose.runtime.LaunchedEffect(bookmarkDirs, bookmarksLoaded) {
+        if (!bookmarksLoaded) return@LaunchedEffect
+        settingsRepo.update { it.copy(fileBookmarks = bookmarkDirs.joinToString("\n") { f -> f.path }) }
     }
 
     // 目录 / 排序 / 刷新标记变化时加载；首次进入也触发
@@ -185,7 +205,9 @@ fun FileBrowserScreen(
         // 左栏导航
         Row(Modifier.weight(1f)) {
             Column(
-                Modifier.width(96.dp).background(MaterialTheme.colorScheme.surfaceContainer),
+                // 书签可超出屏幕：整列可滚动（书签持久化后可积累多个）
+                Modifier.width(96.dp).background(MaterialTheme.colorScheme.surfaceContainer)
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState()),
             ) {
                 NavItem("根 /", externalRoot) {
                     dirStack = dirStack + currentDir
@@ -203,10 +225,13 @@ fun FileBrowserScreen(
                     refreshTick++
                 }
                 NavItem("书签", null, selected = false) {
-                    toast = "书签功能：${bookmarkDirs.size} 个位置"
+                    toast = "书签：${bookmarkDirs.size} 个（长按书签可移除）"
                 }
-                bookmarkDirs.take(3).forEach { dir ->
-                    NavItem("★ ${dir.name}", dir) {
+                bookmarkDirs.forEach { dir ->
+                    NavItem("★ ${dir.name}", dir, onLongClick = {
+                        toast = "已移除书签：${dir.name}"
+                        bookmarkDirs = bookmarkDirs - dir
+                    }) {
                         dirStack = dirStack + currentDir
                         currentDir = dir
                         refreshTick++
@@ -380,11 +405,22 @@ fun FileBrowserScreen(
 }
 
 @Composable
-private fun NavItem(label: String, dir: File?, selected: Boolean = false, onClick: () -> Unit) {
+private fun NavItem(
+    label: String,
+    dir: File?,
+    selected: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+) {
+    val clickMod = if (onLongClick != null) {
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    } else {
+        Modifier.clickable(onClick = onClick)
+    }
     Column(
         Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .then(clickMod)
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
             .padding(vertical = 10.dp, horizontal = 8.dp),
     ) {
