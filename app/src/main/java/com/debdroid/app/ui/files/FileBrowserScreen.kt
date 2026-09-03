@@ -292,6 +292,7 @@ fun FileBrowserScreen(
                     scope.launch(Dispatchers.IO) {
                         val src = sel.firstOrNull()?.let { File(it.path).parentFile }
                         var failed = 0
+                        var firstErr: String? = null
                         if (src != null) {
                             // "对侧"= 外部存储 ↔ 内部 rootfs：源在 externalRoot 树内（含子目录）→ 拷进内部；
                             // 否则（源在内部 rootfs）→ 拷到外部根。此前只看 src==externalRoot，
@@ -300,13 +301,14 @@ fun FileBrowserScreen(
                             val dst = if (inExternal) internalRoot else externalRoot
                             sel.forEach { info ->
                                 val f = File(info.path)
-                                if (runCatching { FsOps.copyRecursive(f, File(dst, f.name)) }.isFailure) failed++
+                                runCatching { FsOps.copyRecursive(f, File(dst, f.name)) }
+                                    .onFailure { e -> failed++; if (firstErr == null) firstErr = e.message }
                             }
                         }
                         withContext(Dispatchers.Main) {
                             toast = if (sel.isEmpty()) "未选择文件"
                             else if (failed == 0) "已复制到对侧（${sel.size} 项）"
-                            else "复制完成，${failed}/${sel.size} 项失败"
+                            else "复制完成，${failed}/${sel.size} 项失败${firstErr?.let { "：$it" } ?: ""}"
                             refreshTick++
                         }
                     }
@@ -317,6 +319,7 @@ fun FileBrowserScreen(
                     scope.launch(Dispatchers.IO) {
                         val src = sel.firstOrNull()?.let { File(it.path).parentFile }
                         var failed = 0
+                        var firstErr: String? = null
                         if (src != null) {
                             // "对侧"= 外部存储 ↔ 内部 rootfs：源在 externalRoot 树内（含子目录）→ 拷进内部；
                             // 否则（源在内部 rootfs）→ 拷到外部根。此前只看 src==externalRoot，
@@ -325,13 +328,14 @@ fun FileBrowserScreen(
                             val dst = if (inExternal) internalRoot else externalRoot
                             sel.forEach { info ->
                                 val f = File(info.path)
-                                if (runCatching { FsOps.moveRecursive(f, File(dst, f.name)) }.isFailure) failed++
+                                runCatching { FsOps.moveRecursive(f, File(dst, f.name)) }
+                                    .onFailure { e -> failed++; if (firstErr == null) firstErr = e.message }
                             }
                         }
                         withContext(Dispatchers.Main) {
                             toast = if (sel.isEmpty()) "未选择文件"
                             else if (failed == 0) "已移动到对侧（${sel.size} 项）"
-                            else "移动完成，${failed}/${sel.size} 项失败"
+                            else "移动完成，${failed}/${sel.size} 项失败${firstErr?.let { "：$it" } ?: ""}"
                             refreshTick++
                         }
                     }
@@ -355,12 +359,14 @@ fun FileBrowserScreen(
                     selection = emptySet()
                     scope.launch(Dispatchers.IO) {
                         var failed = 0
+                        var firstErr: String? = null
                         sel.forEach { path ->
-                            if (runCatching { File(path).deleteRecursively() }.isFailure) failed++
+                            runCatching { File(path).deleteRecursively() }
+                                .onFailure { e -> failed++; if (firstErr == null) firstErr = e.message }
                         }
                         withContext(Dispatchers.Main) {
                             toast = if (failed == 0) "已删除 ${sel.size} 项"
-                            else "删除完成，${failed}/${sel.size} 项失败"
+                            else "删除完成，${failed}/${sel.size} 项失败${firstErr?.let { "：$it" } ?: ""}"
                             refreshTick++
                         }
                     }

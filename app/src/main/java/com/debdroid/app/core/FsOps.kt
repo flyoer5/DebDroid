@@ -95,9 +95,12 @@ object FsOps {
         }
     }
 
-    /** 递归移动：先尝试 rename，失败退化为复制+删除。 */
+    /** 递归移动：先尝试 rename，失败/异常退化为复制+删除。 */
     fun moveRecursive(src: File, dst: File) {
-        if (src.renameTo(dst)) return
+        // renameTo 跨挂载（/data → /storage FUSE）返回 false 属正常；个别平台抛异常——
+        // 都退化到 copy+delete，绝不让移动因 renameTo 中断（真机：rootfs→/sdcard 移动失败定位）
+        val renamed = runCatching { src.renameTo(dst) }.getOrDefault(false)
+        if (renamed) return
         copyRecursive(src, dst)
         src.deleteRecursively()
     }
