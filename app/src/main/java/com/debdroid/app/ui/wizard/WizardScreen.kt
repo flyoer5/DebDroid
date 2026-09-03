@@ -201,14 +201,6 @@ fun WizardScreen(
 
             else -> Unit
         }
-
-        Spacer(Modifier.height(16.dp))
-        Text(
-            stringResource(R.string.wizard_need_space),
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
     }
 }
 

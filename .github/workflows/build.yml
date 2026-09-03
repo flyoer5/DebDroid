@@ -66,13 +66,22 @@ jobs:
           chmod +x scripts/provision_rootfs.sh
           ./scripts/provision_rootfs.sh app/src/main/assets/rootfs.tar.xz
 
+      - name: Compute version name (tag → x.y.z; branch → default)
+        id: ver
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=2.1.0" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build arm64 APK (release, signed)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --stacktrace --no-daemon -PversionCode=${{ github.run_number }}
+        run: ./gradlew assembleRelease --stacktrace --no-daemon -PversionCode=${{ github.run_number }} -PversionName=${{ steps.ver.outputs.name }}
 
       - name: Collect APK
         run: |

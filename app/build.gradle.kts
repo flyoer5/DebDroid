@@ -13,7 +13,9 @@ plugins {
  * - 单 arm64：ndk abiFilters 限定 arm64-v8a；rootfs/proot 资产统一放 src/main/assets
  * - targetSdk 28 硬约束：API 29+ 禁止执行应用私有目录中的可执行文件，proot 无法运行
  * - 签名：CI 注入 KEYSTORE_FILE/KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD；本地无 Secrets 时回退 debug
- * - versionCode：CI 传 -PversionCode=$GITHUB_RUN_NUMBER；本地默认 1（versionName 手工维护）
+ * - versionCode：CI 传 -PversionCode=$GITHUB_RUN_NUMBER；本地默认 1
+ * - versionName：CI 从 tag 注入 -PversionName=${GITHUB_REF_NAME#v}；本地默认 2.1.0
+ *   （手工维护需与 git tag 对齐，否则 app 内显示版本与发行名不一致——用户反馈）
  */
 val keystoreBase64: String? = System.getenv("KEYSTORE_BASE64")
 
@@ -27,7 +29,8 @@ android {
         targetSdk = 28
         // CI 注入：-PversionCode=$GITHUB_RUN_NUMBER；本地构建默认 1
         versionCode = (project.findProperty("versionCode") as String? ?: "1").toInt()
-        versionName = "2.0.0"
+        // CI 注入：-PversionName=${GITHUB_REF_NAME#v}（tag 构建，保证与发行名一致）；本地默认 2.1.0
+        versionName = (project.findProperty("versionName") as String? ?: "2.1.0")
 
         ndk {
             // 单 arm64（v2 决策 T-04）
