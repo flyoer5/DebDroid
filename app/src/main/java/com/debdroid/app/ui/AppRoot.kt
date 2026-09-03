@@ -59,7 +59,12 @@ fun AppRoot(initialRoute: String? = null) {
 
     fun startFirstSession() {
         scope.launch {
-            val ok = runCatching { app.sessionManager.ensureSession(settings) }
+            // 等 DataStore 首读完成再建会话：冷启动首帧 collectAsState 还是 AppSettings()
+            // 默认值（tmuxAttach=true/startupCommand 空/sshEnabled=false），会建出错误参数的
+            // 会话（真机调试定位：tmuxAttach=false 被忽略、会话仍进 tmux）。first() 挂起
+            // 到 DataStore 读取完成，拿真实设置。
+            val s = app.settingsRepository.settings.first()
+            val ok = runCatching { app.sessionManager.ensureSession(s) }
                 .onFailure { e ->
                     Log.e("DebDroid", "session start failed", e)
                     withContext(Dispatchers.Main) {
@@ -69,7 +74,7 @@ fun AppRoot(initialRoute: String? = null) {
                     }
                 }
                 .getOrDefault(false)
-            if (ok && settings.keepForeground) KeepAliveService.start(app)
+            if (ok && s.keepForeground) KeepAliveService.start(app)
         }
     }
 
