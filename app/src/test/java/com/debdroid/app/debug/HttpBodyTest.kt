@@ -16,7 +16,7 @@ class HttpBodyTest {
     @Test
     fun `utf8 json body roundtrips through local nanohttpd`() {
         val server = object : NanoHTTPD(0) {
-            override fun serve(session: fi.iki.elonen.IHTTPSession): NanoHTTPD.Response {
+            override fun serve(session: fi.iki.elonen.NanoHTTPD.IHTTPSession): NanoHTTPD.Response {
                 val body = HttpBody.readUtf8(session)
                 return newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/json", body)
             }
@@ -40,7 +40,7 @@ class HttpBodyTest {
     @Test
     fun `empty body and no content-length are safe`() {
         val server = object : NanoHTTPD(0) {
-            override fun serve(session: fi.iki.elonen.IHTTPSession): NanoHTTPD.Response {
+            override fun serve(session: fi.iki.elonen.NanoHTTPD.IHTTPSession): NanoHTTPD.Response {
                 val body = HttpBody.readUtf8(session)
                 return newFixedLengthResponse("len=${body.length}")
             }
