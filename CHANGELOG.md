@@ -2,6 +2,21 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.7] — SSH 稳定性修复（真机暴露问题）
+
+### 修复
+
+- **SSH 连接风暴锁死（FR-H4 自愈）**：真机长时间运行暴露——客户端连接受阻反复重试会
+  占满 sshd 默认未认证连接槽（MaxStartups=10）与新连接 120s 死亡宽限，导致 sshd
+  「端口通但新连接 banner 不来」持续数分钟，只能重启应用恢复。
+  - sshd_config 稳定性加固（SshdConfig 纯函数生成，单测覆盖）：`MaxStartups 100:30:200`、
+    `LoginGraceTime 20`、`UseDNS no`、`TCPKeepAlive yes`、`ClientAliveInterval 60`、
+    `ClientAliveCountMax 3`——风暴堆积不再锁死新连接，死连接 20s 内自动回收。
+  - **SSH 自愈看门狗**：每 30s 向监听地址发起 TCP banner 探测（与真实客户端一致）；
+    进程退出立即自动重启、连续 3 次探测无响应（约 90s）判定假死自动重启；重启节流
+    ≥90s、连续自动重启 ≤3 次仍失败则停止 sshd 并如实显示已停止；看门狗与手动启停
+    不竞态（status 门 + job cancel 协同）。此后 sshd 异常无需再重启整个应用。
+
 ## [2.0.0] — 从零重写版（首个重写 Release）
 
 这是对 v1.x 的**推倒重写**：全新目录、干净 git 历史、重写全部代码与 CI。功能清单与 v1.0.29 对齐，同时修复 v1.x 的四大痛点（构建/CI、代码结构、git 历史、文档）。

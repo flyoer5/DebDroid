@@ -1,15 +1,20 @@
 package com.debdroid.app.ssh
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import com.debdroid.app.prefs.AppSettings
 import com.debdroid.app.rootfs.RootfsInstaller
 import com.debdroid.app.session.ProotLauncher
 import java.io.File
+import java.net.InetSocketAddress
 import java.net.NetworkInterface
+import java.net.Socket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +47,18 @@ class SshManager(
 
     @Volatile
     private var holder: Process? = null
+
+    /** 看门狗协程（sshd 启动后武装，停止/重启时取消）。 */
+    @Volatile
+    private var watchdogJob: Job? = null
+
+    /** 上次自动重启时刻（elapsedRealtime），跨看门狗实例共享做节流。 */
+    @Volatile
+    private var lastAutoRestartAt = 0L
+
+    /** 连续自动重启计数（健康探测归零；手动启停归零），跨看门狗实例累计做上限。 */
+    @Volatile
+    private var autoRestartCount = 0
 
     private fun sshdFile(): File = File(rootfsInstaller.rootfsDir(), "usr/sbin/sshd")
 
@@ -81,20 +98,9 @@ class SshManager(
         sshCfg.parentFile?.mkdirs()
         runCatching { sshCfg.delete() } // 覆盖包管理器留下的文件/符号链接
         // 注：无 UsePAM——rootfs 内置自定义 sshd（无 sandbox 交叉编译）不识别 UsePAM；
-        // HostKey 显式指定（编译版默认找 /usr/local/etc，真机调试定位）
-        sshCfg.writeText(
-            """
-            Port ${settings.sshPort}
-            ListenAddress $listenAddr
-            PermitRootLogin yes
-            PasswordAuthentication yes
-            PubkeyAuthentication yes
-            HostKey /etc/ssh/ssh_host_ed25519_key
-            PrintMotd no
-            AcceptEnv LANG LC_*
-            Subsystem sftp internal-sftp
-            """.trimIndent() + "\n"
-        )
+        // HostKey 显式指定（编译版默认找 /usr/local/etc，真机调试定位）。
+        // 文本由 SshdConfig 纯函数生成（含 v2.1.7 稳定性加固参数，单测覆盖）。
+        sshCfg.writeText(SshdConfig.render(settings.sshPort, listenAddr))
 
         val sshDir = File(rootfs, "root/.ssh")
         sshDir.mkdirs()
@@ -126,9 +132,10 @@ class SshManager(
 
     /**
      * 启动 sshd（后台常驻 proot 进程）。
+     * @param autoRestart true=看门狗自愈触发的重启（不重置连续失败计数）；默认 false=手动/自启启动（计数清零，全新开始）。
      * @return null=成功；否则人类可读失败原因（真实 stderr 尾部）。
      */
-    fun startBlocking(settings: AppSettings): String? {
+    fun startBlocking(settings: AppSettings, autoRestart: Boolean = false): String? {
         stopBlocking()
         if (!isInstalled()) return context.getString(com.debdroid.app.R.string.ssh_not_installed_hint)
         applyConfigBlocking(settings)
@@ -157,6 +164,8 @@ class SshManager(
             if (process.isAlive) {
                 holder = process
                 _status.value = SshStatus.Running(settings.sshPort, settings.sshListenAll)
+                if (!autoRestart) autoRestartCount = 0 // 手动/自启启动 = 全新开始
+                armWatchdog(settings) // 启动成功才武装看门狗（自愈，FR-H4）
                 null
             } else {
                 val out = process.inputStream.bufferedReader().readText()
@@ -174,12 +183,99 @@ class SshManager(
         }
     }
 
+    /**
+     * SSH 自愈看门狗（FR-H4，v2.1.7）。
+     *
+     * 背景（真机暴露）：默认 sshd 配置下，客户端重试堆积会占满未认证连接槽，
+     * sshd 表现为「端口通但新连接 banner 不来」，持续数分钟，只能重启应用恢复。
+     * 加固配置（SshdConfig）已把风暴自清理时间压到 ~20s；本看门狗兜底处理
+     * 进程假死/退出——连续探测失败自动重启 sshd，无需用户重启整个应用。
+     *
+     * - 探测：每 [WATCHDOG_INTERVAL_MS] 向监听地址发起一次 TCP 连接并读 banner
+     *   （与真实 ssh 客户端一致——健康 sshd 会立即回 "SSH-2.0-..."）。
+     * - 干预：进程退出立即重启；进程存活但连续 [PROBE_MISSES_TO_RESTART] 次
+     *   探测无响应视为假死重启。间隔不低于 [AUTO_RESTART_GAP_MS]，
+     *   连续失败超过 [MAX_AUTO_RESTARTS] 次停止 sshd 并放弃（避免死循环风暴）。
+     * - 不探测场景：仅局域网监听且拿不到本机 IP（WiFi 断开等）——无监听地址可测，
+     *   重启也不会改善。
+     */
+    private fun armWatchdog(settings: AppSettings) {
+        watchdogJob?.cancel()
+        watchdogJob = scope.launch {
+            var misses = 0
+            while (true) {
+                delay(WATCHDOG_INTERVAL_MS)
+                // 已被用户停止（status 非 Running）→ 退出；stopBlocking 也会 cancel 本协程
+                if (_status.value !is SshStatus.Running) break
+                // 仅局域网且拿不到本机 IP（WiFi 断开等）→ 无监听地址可测，跳过本轮
+                if (!settings.sshListenAll && localIpAddress() == null) continue
+
+                val alive = holder?.isAlive == true
+                if (alive && probeSsh(settings)) {
+                    misses = 0
+                    autoRestartCount = 0 // 健康 → 连续失败计数归零
+                    continue
+                }
+                if (alive) {
+                    misses += 1 // 进程假死：连续探测无响应累计
+                    if (misses < PROBE_MISSES_TO_RESTART) continue
+                } else {
+                    misses = PROBE_MISSES_TO_RESTART // 进程退出 = 立即干预一次
+                }
+                // 竞态保险：判定期间用户可能已手动停止——复查，避免看门狗把刚停的 sshd 又拉起
+                if (_status.value !is SshStatus.Running) break
+                if (autoRestartCount >= MAX_AUTO_RESTARTS) {
+                    Log.e(TAG, "sshd 连续异常 ${autoRestartCount + 1} 次仍无法恢复，停止 sshd（放弃自动重启，请手动重新启用）")
+                    stopBlocking()
+                    break
+                }
+                if (SystemClock.elapsedRealtime() - lastAutoRestartAt < AUTO_RESTART_GAP_MS) {
+                    Log.w(TAG, "sshd 自动重启过于频繁，本轮跳过")
+                    continue
+                }
+                autoRestartCount += 1
+                lastAutoRestartAt = SystemClock.elapsedRealtime()
+                Log.w(TAG, "sshd ${if (alive) "无响应" else "进程退出"}，自动重启 #$autoRestartCount")
+                restartFromWatchdog(settings) // 内部 stop+start，成功则重新武装新看门狗
+                break
+            }
+        }
+    }
+
+    /** 看门狗重启：内部先 stopBlocking（取消旧看门狗、杀进程、proot 兜底清理）再 startBlocking 重新武装。 */
+    private fun restartFromWatchdog(settings: AppSettings) {
+        runCatching {
+            val err = startBlocking(settings, autoRestart = true)
+            if (err != null) Log.e(TAG, "看门狗自动重启失败: $err")
+        }.onFailure { Log.e(TAG, "看门狗自动重启异常", it) }
+    }
+
+    /** TCP banner 探测：健康 sshd 会在新连接建立后立即回 "SSH-2.0-..."。 */
+    private fun probeSsh(settings: AppSettings): Boolean {
+        val host = when {
+            settings.sshListenAll -> "127.0.0.1"
+            else -> localIpAddress() ?: return false
+        }
+        return try {
+            Socket().use { s ->
+                s.connect(InetSocketAddress(host, settings.sshPort), PROBE_TIMEOUT_MS)
+                s.soTimeout = PROBE_TIMEOUT_MS
+                val buf = ByteArray(8)
+                s.getInputStream().read(buf) > 0
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun startAsync(settings: AppSettings) {
         scope.launch { startBlocking(settings) }
     }
 
     /** 停止 sshd 并等待进程真正退出（≤3s），防止残留占端口（FR-H2 端口释放）。 */
     fun stopBlocking() {
+        watchdogJob?.cancel() // 取消看门狗，避免与手动停止竞态
+        watchdogJob = null
         holder?.let { p ->
             runCatching { p.destroyForcibly() }
             runCatching { p.waitFor(3, java.util.concurrent.TimeUnit.SECONDS) }
@@ -217,5 +313,20 @@ class SshManager(
 
     companion object {
         private const val TAG = "SshManager"
+
+        /** 看门狗探测周期。 */
+        private const val WATCHDOG_INTERVAL_MS = 30_000L
+
+        /** TCP banner 探测单次超时（连接 + 读）。 */
+        private const val PROBE_TIMEOUT_MS = 4_000
+
+        /** 进程存活但连续多少次探测无响应判定为假死并重启。 */
+        private const val PROBE_MISSES_TO_RESTART = 3
+
+        /** 连续自动重启上限（健康或手动启停后归零；超限停止 sshd 并放弃）。 */
+        private const val MAX_AUTO_RESTARTS = 3
+
+        /** 两次自动重启的最小间隔，避免死循环风暴。 */
+        private const val AUTO_RESTART_GAP_MS = 90_000L
     }
 }
