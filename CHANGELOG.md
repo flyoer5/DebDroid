@@ -2,6 +2,19 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.10] — 调试接口 POST body 中文修复
+
+### 修复
+
+- **DebugApiServer POST body 非 ASCII 全毁(真机暴露)**:NanoHTTPD 2.3.1 的
+  `parseBody` 对 postData 按 `ContentType.getEncoding()` 解码,而 **Content-Type 不带
+  charset 时默认 US-ASCII**——任何不带 `; charset=utf-8` 的客户端(curl 等)POST
+  中文,JSON 里非 ASCII 全变 U+FFFD(efbfbd):files/write 中文内容/路径写坏、
+  session/write 中文命令乱码。已用 jar 级最小复现 + 源码定位确认。
+  修复:新增 `HttpBody.readUtf8`——按 Content-Length 直接读原始字节、UTF-8 解码
+  (JSON body 按 RFC 8259 即 UTF-8,不再依赖客户端 charset 头);无长度信息时退回
+  parseBody 旧行为。JVM 单测起本地 NanoHTTPD 全链路验证中文往返。
+
 ## [2.1.9] — 时区跟随系统 + 诊断占用修复
 
 ### 改进
