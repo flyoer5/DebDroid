@@ -114,8 +114,20 @@ class DebugApiServer(
             method == "POST" && path == "/api/settings" -> {
                 val body = readBody(session)
                 val obj = JSONObject(body)
+                val before = settingsSnapshot()
                 runBlocking {
                     settingsRepository.update { it.applyJson(obj) }
+                }
+                val after = settingsSnapshot()
+                // v2.1.11：SSH 设置变更即时生效（与 UI 一致）——停用则停、启用则启、
+                // 运行中改端口/监听/密码/公钥则自动重启应用新配置。
+                runBlocking {
+                    when {
+                        !after.sshEnabled -> if (before.sshEnabled) sshManager.stopBlocking()
+                        !before.sshEnabled -> sshManager.startAsync(after)
+                        com.debdroid.app.ssh.SshManager.sshConfigChanged(before, after) ->
+                            sshManager.startBlocking(after)
+                    }
                 }
                 json(200, JSONObject().put("ok", true))
             }

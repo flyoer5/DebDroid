@@ -328,5 +328,17 @@ class SshManager(
 
         /** 两次自动重启的最小间隔，避免死循环风暴。 */
         private const val AUTO_RESTART_GAP_MS = 90_000L
+
+        /**
+         * v2.1.11：sshd 运行中需重启才能生效的设置变化判定（纯函数，单测）。
+         * sshd 只在启动时读配置/authorized_keys/执行 chpasswd，改端口、监听、
+         * 密码、公钥后不重启即静默失效（真机暴露：改密码旧密码仍可登录、改端口
+         * sshd 仍在旧端口）。
+         */
+        fun sshConfigChanged(old: AppSettings, new: AppSettings): Boolean =
+            old.sshPort != new.sshPort ||
+                old.sshListenAll != new.sshListenAll ||
+                old.sshPassword != new.sshPassword ||
+                old.sshAuthorizedKeys != new.sshAuthorizedKeys
     }
 }

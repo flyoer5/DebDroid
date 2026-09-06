@@ -85,6 +85,26 @@ fun SettingsScreen(
         toast = "设置已保存 ✓"
     }
 
+    /**
+     * v2.1.11：sshd 运行中改端口/监听/密码/公钥 → 自动重启应用新配置。
+     * 此前只落盘不重启，新配置静默不生效（改密码旧密码仍可登录、改端口 sshd 仍在旧端口，
+     * 真机暴露）。重启走 startBlocking：内部先 stop（杀 sshd + 清残留）再按新设置启动。
+     */
+    fun restartSshIfRunning(before: AppSettings, after: AppSettings) {
+        if (sshStatus !is SshStatus.Running) return
+        if (!com.debdroid.app.ssh.SshManager.sshConfigChanged(before, after)) return
+        toast = "SSH 运行中：正在重启应用新配置…"
+        scope.launch {
+            busy = true
+            try {
+                com.debdroid.app.DebDroidApp.instance.sshManager.startBlocking(after)
+                    ?.let { toast = "SSH 重启失败: $it" }
+            } finally {
+                busy = false
+            }
+        }
+    }
+
     if (toastText != null) {
         // 设置变更即时可见（DataStore 已落盘），Toast 短提示（FR-C3）
         android.widget.Toast.makeText(
@@ -242,7 +262,11 @@ fun SettingsScreen(
                         trailing = {
                             Switch(
                                 checked = settings.sshListenAll,
-                                onCheckedChange = { checked -> change { it.copy(sshListenAll = checked) } },
+                                onCheckedChange = { checked ->
+                                    val before = settings
+                                    change { it.copy(sshListenAll = checked) }
+                                    restartSshIfRunning(before, before.copy(sshListenAll = checked))
+                                },
                             )
                         },
                     )
@@ -437,11 +461,10 @@ fun SettingsScreen(
             range = 1024..65535,
             onDismiss = { portDlg = false },
             onConfirm = { value ->
+                val before = settings
                 change { it.copy(sshPort = value) }
-                // L9：运行中改端口 sshd 不热加载——提示重启才生效
-                if (value != settings.sshPort && sshStatus is SshStatus.Running) {
-                    toast = "SSH 运行中：新端口在重启 SSH 后生效"
-                }
+                // v2.1.11：运行中自动重启（原 L9 仅 toast 提示"重启才生效"，改密码等则完全静默不生效）
+                restartSshIfRunning(before, before.copy(sshPort = value))
                 portDlg = false
             },
         )
@@ -452,7 +475,13 @@ fun SettingsScreen(
             initial = settings.sshPassword,
             isPassword = true,
             onDismiss = { passwdDlg = false },
-            onConfirm = { value -> change { it.copy(sshPassword = value.trim()) }; passwdDlg = false },
+            onConfirm = { value ->
+                val before = settings
+                val v = value.trim()
+                change { it.copy(sshPassword = v) }
+                restartSshIfRunning(before, before.copy(sshPassword = v))
+                passwdDlg = false
+            },
         )
     }
     if (keysDlg) {
@@ -461,7 +490,13 @@ fun SettingsScreen(
             initial = settings.sshAuthorizedKeys,
             multiLine = true,
             onDismiss = { keysDlg = false },
-            onConfirm = { value -> change { it.copy(sshAuthorizedKeys = value.trim()) }; keysDlg = false },
+            onConfirm = { value ->
+                val before = settings
+                val v = value.trim()
+                change { it.copy(sshAuthorizedKeys = v) }
+                restartSshIfRunning(before, before.copy(sshAuthorizedKeys = v))
+                keysDlg = false
+            },
         )
     }
     if (startupDlg) {

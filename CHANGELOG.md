@@ -2,6 +2,18 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.11] — SSH 设置变更运行中自动生效
+
+### 修复
+
+- **sshd 运行中改端口/监听/密码/公钥静默不生效（真机暴露）**：只落盘不重启——
+  改密码后旧密码仍可登录（安全盲区）、改端口 sshd 仍在旧端口监听、改监听范围
+  无变化。现在四处 UI 变更点（端口对话框、监听开关、密码、公钥）与调试接口
+  POST /api/settings 统一处理：**sshd 运行中且相关配置变化 → 自动重启即时应用**
+  （startBlocking 先停后起，短时中断）；仅启停变化 → 自动启/停。
+- 判定纯函数 `SshManager.sshConfigChanged(old,new)` 单测覆盖（端口/监听/密码/
+  公钥四项触发；无关设置不触发）。
+
 ## [2.1.10] — 调试接口 POST body 中文修复
 
 ### 修复
