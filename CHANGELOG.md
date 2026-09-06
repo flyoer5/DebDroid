@@ -2,6 +2,17 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.13] — SSH 设置变更重启不再冻结 UI
+
+### 修复
+
+- **设置页改 SSH 配置时 UI 冻结数秒、有 ANR 风险（真机 UI 走查暴露）**：
+  v2.1.11 的 `restartSshIfRunning` 在 Main 协程直接跑阻塞式 `startBlocking`
+  （内部 stop 含 runOnce pkill，秒级），重启期间整个设置界面无响应。
+- 修复：与启停开关同款做法，`withContext(Dispatchers.IO)` 包裹后执行，
+  期间仅显示"正在重启…"状态；UI 走查实测改端口 8022→8025 自动重启生效、
+  界面不冻结。
+
 ## [2.1.12] — DNS/apt 镜像设置变更即时生效
 
 ### 修复
