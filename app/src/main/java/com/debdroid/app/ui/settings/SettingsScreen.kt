@@ -45,7 +45,9 @@ import com.debdroid.app.prefs.AptMirror
 import com.debdroid.app.prefs.ThemeMode
 import com.debdroid.app.ssh.SshStatus
 import com.debdroid.app.ui.theme.TerminalColors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 设置屏（FR-C1~C4 / FR-H1~H3 / FR-K1~K3，architecture.md §3.6）。
@@ -103,6 +105,24 @@ fun SettingsScreen(
                 busy = false
             }
         }
+    }
+
+    /**
+     * v2.1.12：DNS/apt 镜像变更即时写盘（此前仅安装时生效，改后 guest 仍用旧配置——
+     * 真机暴露）。IO 线程执行小文件写，toast 沿用 change() 的"设置已保存"。
+     */
+    fun applyRuntimeWrite(after: AppSettings, write: (AppSettings) -> Unit) {
+        scope.launch { withContext(Dispatchers.IO) { write(after) } }
+    }
+
+    /** v2.1.12：选镜像 → 落盘 + 即时重写 rootfs sources.list（此前仅安装时生效）。 */
+    fun chooseMirror(m: AptMirror) {
+        val after = settings.copy(aptMirrorId = m.id)
+        change { it.copy(aptMirrorId = m.id) }
+        applyRuntimeWrite(after) { s ->
+            com.debdroid.app.DebDroidApp.instance.rootfsInstaller.applyMirror(s)
+        }
+        mirrorDlg = false
     }
 
     if (toastText != null) {
@@ -527,7 +547,16 @@ fun SettingsScreen(
             initial = settings.customDns,
             multiLine = true,
             onDismiss = { dnsDlg = false },
-            onConfirm = { value -> change { it.copy(customDns = value.trim()) }; dnsDlg = false },
+            onConfirm = { value ->
+                val v = value.trim()
+                val after = settings.copy(customDns = v)
+                change { it.copy(customDns = v) }
+                // v2.1.12：即时重写宿主 resolv.conf（绑定文件，运行中会话立即可见）
+                applyRuntimeWrite(after) { s ->
+                    com.debdroid.app.DebDroidApp.instance.rootfsInstaller.applyDns(s)
+                }
+                dnsDlg = false
+            },
         )
     }
     if (mirrorDlg) {
@@ -539,17 +568,13 @@ fun SettingsScreen(
                     AptMirror.entries.forEach { m ->
                         Row(
                             Modifier.fillMaxWidth().clickable {
-                                change { it.copy(aptMirrorId = m.id) }
-                                mirrorDlg = false
+                                chooseMirror(m)
                             }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(
                                 selected = settings.aptMirrorId == m.id,
-                                onClick = {
-                                    change { it.copy(aptMirrorId = m.id) }
-                                    mirrorDlg = false
-                                },
+                                onClick = { chooseMirror(m) },
                             )
                             Text(m.url, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }

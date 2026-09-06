@@ -2,6 +2,21 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.12] — DNS/apt 镜像设置变更即时生效
+
+### 修复
+
+- **自定义 DNS / apt 镜像源改后无效（真机暴露）**：二者只在安装时写一次文件——
+  设置页改了 customDns，guest 的 resolv.conf（proot 绑定的是宿主文件）仍是安装时
+  内容；改了镜像，rootfs 内 sources.list 仍是旧源。
+- 修复：抽出幂等写盘 `RootfsInstaller.applyDns`（宿主 resolv.conf，绑定文件改写后
+  运行中会话立即可见）/ `applyMirror`（rootfs sources.list，未安装静默跳过），
+  configure() 复用。触发点：
+  - 设置页 DNS 对话框、镜像选择（IO 协程即时写盘）
+  - 调试接口 POST /api/settings 对应键变化时
+- 纯函数 `RootfsInstaller.resolvContent(customDns)`（空 → 默认 8.8.8.8/223.5.5.5）
+  单测覆盖。
+
 ## [2.1.11] — SSH 设置变更运行中自动生效
 
 ### 修复
