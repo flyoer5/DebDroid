@@ -94,19 +94,39 @@ class RootfsInstaller(val context: Context) {
     /**
      * 写 apt sources.list（FR-C1/FR-W4）与 resolv.conf（FR-C2）。
      * 中文环境 + 未手动选择 → 默认阿里云（tuna 对部分网络 403，真机调试定位）。
+     * v2.1.12：拆出可单独调用的幂等写盘，设置变更（镜像/DNS）即时生效。
      */
     fun configure(settings: AppSettings) {
-        val mirror = AptMirror.fromId(settings.aptMirrorId)
-        val sources = File(rootfsDir(), "etc/apt/sources.list")
-        sources.parentFile?.mkdirs()
-        sources.writeText(buildSourcesList(mirror))
-
-        // resolv.conf：应用私有文件，由 ProotLauncher 绑定进 rootfs
-        val resolv = File(context.filesDir, "resolv.conf")
-        resolv.writeText(settings.customDns.ifBlank { "nameserver 8.8.8.8\nnameserver 223.5.5.5\n" })
-
+        applyMirror(settings)
+        applyDns(settings)
         // v2.1.9：安装/配置即让 guest /etc/localtime 跟随系统时区（幂等，失败静默——UTC 兜底）
         runCatching { syncGuestTimezone() }
+    }
+
+    /**
+     * v2.1.12：按当前设置重写 rootfs 内 apt sources.list（rootfs 未装时静默跳过）。
+     * 此前仅安装时写一次——用户改镜像后 apt 仍用旧源（真机暴露）。
+     * 磁盘操作；调用方保证 IO 线程。
+     */
+    fun applyMirror(settings: AppSettings) {
+        if (!isInstalled()) return
+        runCatching {
+            val mirror = AptMirror.fromId(settings.aptMirrorId)
+            val sources = File(rootfsDir(), "etc/apt/sources.list")
+            sources.parentFile?.mkdirs()
+            sources.writeText(buildSourcesList(mirror))
+        }
+    }
+
+    /**
+     * v2.1.12：按当前设置重写宿主 resolv.conf（proot 以 -b 绑定进 guest，
+     * 绑定的是同一文件，改写后运行中会话立即可见）。
+     * 此前仅安装时写一次——用户改 DNS 后 guest 仍用旧解析（真机暴露）。
+     * 磁盘操作；调用方保证 IO 线程。
+     */
+    fun applyDns(settings: AppSettings) {
+        val resolv = File(context.filesDir, "resolv.conf")
+        resolv.writeText(resolvContent(settings.customDns))
     }
 
     /**
@@ -148,6 +168,10 @@ class RootfsInstaller(val context: Context) {
         /** 中文环境首次默认镜像（FR-W4）。tuna 实测对部分网络 403 不可靠（真机调试定位），改阿里云。 */
         fun defaultMirrorForLocale(locale: java.util.Locale = java.util.Locale.getDefault()): AptMirror =
             if (locale.language.startsWith("zh")) AptMirror.ALIYUN else AptMirror.OFFICIAL
+
+        /** resolv.conf 内容（纯函数）：customDns 空 → 默认 8.8.8.8/223.5.5.5（v2.1.12 抽出可单测）。 */
+        fun resolvContent(customDns: String): String =
+            customDns.trim().ifBlank { "nameserver 8.8.8.8\nnameserver 223.5.5.5\n" }
 
         /**
          * 校验 Android 时区 id 并返回 zoneinfo 内对应条目（纯函数，可单测）。

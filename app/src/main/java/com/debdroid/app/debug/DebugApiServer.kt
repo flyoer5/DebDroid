@@ -129,6 +129,9 @@ class DebugApiServer(
                             sshManager.startBlocking(after)
                     }
                 }
+                // v2.1.12：DNS/镜像设置变更即时写盘（此前仅安装时生效，改后无效——真机暴露）
+                if (before.customDns != after.customDns) rootfsInstaller.applyDns(after)
+                if (before.aptMirrorId != after.aptMirrorId) rootfsInstaller.applyMirror(after)
                 json(200, JSONObject().put("ok", true))
             }
 

@@ -34,6 +34,23 @@ class RootfsInstallerTest {
 
     // ---- v2.1.9 guest 时区跟随（纯函数层） ----
 
+    // ---- v2.1.12 resolv.conf 内容（纯函数层） ----
+
+    @Test
+    fun `resolvContent blank custom dns falls back to defaults`() {
+        val out = RootfsInstaller.resolvContent("")
+        assertTrue(out.contains("nameserver 8.8.8.8"))
+        assertTrue(out.contains("nameserver 223.5.5.5"))
+    }
+
+    @Test
+    fun `resolvContent carries custom dns verbatim`() {
+        val out = RootfsInstaller.resolvContent("nameserver 223.5.5.5\nnameserver 1.1.1.1")
+        assertTrue(out.contains("223.5.5.5"))
+        assertTrue(out.contains("1.1.1.1"))
+        assertTrue(!out.contains("8.8.8.8"))
+    }
+
     @Test
     fun `timezoneTarget maps valid android tz id into zoneinfo`() {
         val root = java.nio.file.Files.createTempDirectory("dd-tz").toFile()
