@@ -88,6 +88,12 @@ commons-compress 1.27.1 + xz（rootfs 解压）· minSdk 26 / targetSdk 28 / com
 5. [Main] 进度节流上报（每 ≥10ms 或每 N 条目一次）
 6. [Main] 完成 → `onFinished` → 自动创建首个会话（FR-W3）
 
+**guest 时区跟随（v2.1.9）**：`RootfsInstaller.syncGuestTimezone()` 把
+`filesDir/rootfs/etc/localtime` 重建为指向 `usr/share/zoneinfo/<Android 时区 id>` 的符号链接
+（幂等；zoneinfo 无对应条目则保持 UTC）。Android 与 Debian 共用 IANA tz 库，id 直接对应路径；
+路径校验见 `timezoneTarget`（纯函数，单测覆盖）。触发点：安装 `configure()` + 应用进程启动
+（DebDroidApp.onCreate，IO 协程）。此前 rootfs 恒 Etc/UTC，终端 date/日志与本地差 8 小时（真机暴露）。
+
 错误处理：任一步失败 → 删除半成品目录 → 回向导显示错误 + 重试；**不闪退**（FR-W5 同类）。
 
 恢复出厂：停 SSH → 关全部会话 → 删除 `filesDir/rootfs` 等 → 回 WIZARD 屏（复用安装流程）。

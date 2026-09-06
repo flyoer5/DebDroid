@@ -1,8 +1,10 @@
 package com.debdroid.app.rootfs
 
 import com.debdroid.app.prefs.AptMirror
+import java.io.File
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,5 +30,40 @@ class RootfsInstallerTest {
         assertEquals(AptMirror.ALIYUN, RootfsInstaller.defaultMirrorForLocale(Locale("zh", "CN")))
         assertEquals(AptMirror.OFFICIAL, RootfsInstaller.defaultMirrorForLocale(Locale.US))
         assertEquals(AptMirror.OFFICIAL, RootfsInstaller.defaultMirrorForLocale(Locale.ENGLISH))
+    }
+
+    // ---- v2.1.9 guest 时区跟随（纯函数层） ----
+
+    @Test
+    fun `timezoneTarget maps valid android tz id into zoneinfo`() {
+        val root = java.nio.file.Files.createTempDirectory("dd-tz").toFile()
+        try {
+            val asia = File(root, "Asia").apply { mkdirs() }
+            File(asia, "Shanghai").writeText("TZif") // 伪 zoneinfo 文件
+            val hit = RootfsInstaller.timezoneTarget(root, "Asia/Shanghai")
+            assertEquals(File(asia, "Shanghai"), hit)
+            // 本地缺条目 → null（保持 UTC）
+            assertNull(RootfsInstaller.timezoneTarget(root, "Europe/Paris"))
+            // 目录而非文件 → null
+            assertNull(RootfsInstaller.timezoneTarget(root, "Asia"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `timezoneTarget rejects path traversal and garbage ids`() {
+        val root = java.nio.file.Files.createTempDirectory("dd-tz").toFile()
+        try {
+            assertNull(RootfsInstaller.timezoneTarget(root, "../etc/passwd"))
+            assertNull(RootfsInstaller.timezoneTarget(root, ".."))
+            assertNull(RootfsInstaller.timezoneTarget(root, "Asia/../../etc"))
+            assertNull(RootfsInstaller.timezoneTarget(root, ""))
+            assertNull(RootfsInstaller.timezoneTarget(root, "/"))
+            assertNull(RootfsInstaller.timezoneTarget(root, "Asia Shanghai"))
+            assertNull(RootfsInstaller.timezoneTarget(root, "Asia\\Shanghai"))
+        } finally {
+            root.deleteRecursively()
+        }
     }
 }

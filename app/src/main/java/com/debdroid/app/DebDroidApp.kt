@@ -44,6 +44,19 @@ class DebDroidApp : Application() {
         sessionManager = SessionManager(rootfsInstaller, sshManager)
         sshManager.refreshStatus() // 进程重启后恢复 SSH 状态展示（FR-H2）
         watchDebugApi() // 调试接口随设置开关启停（默认关）
+        syncGuestTimezoneOnce() // v2.1.9：rootfs 就绪时让 guest 时区跟随系统（幂等）
+    }
+
+    /** v2.1.9：进程启动即同步 guest /etc/localtime → 系统时区（IO，幂等，失败静默）。 */
+    private fun syncGuestTimezoneOnce() {
+        kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+        ).launch {
+            if (rootfsInstaller.isInstalled()) {
+                runCatching { rootfsInstaller.syncGuestTimezone() }
+                    .onFailure { android.util.Log.w(TAG, "guest timezone sync failed", it) }
+            }
+        }
     }
 
     /**

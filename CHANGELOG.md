@@ -2,6 +2,21 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.9] — 时区跟随系统 + 诊断占用修复
+
+### 改进
+
+- **guest 时区跟随系统（真机暴露）**：此前 rootfs 恒为 `Etc/UTC`，终端 `date`/服务日志与
+  本地时间差 8 小时。现在安装后与应用每次启动时，把 `/etc/localtime` 指向与 Android 系统
+  时区对应的 zoneinfo（Android 与 Debian 共用 IANA tz 库；id 路径校验 `timezoneTarget` 纯函数
+  单测覆盖；本地无对应条目则保持 UTC 不报错）。
+
+### 修复
+
+- **诊断页 rootfs 占用恒显示 4.0K**：此前用顶层目录自身 `length()` 统计；改为
+  `FsOps.dirSize` 递归统计（含目录项、不跟随符号链接、不可读子树跳过，迭代实现防深目录栈溢出，
+  单测覆盖）。现在能正确显示 ~几百 M 实际占用。
+
 ## [2.1.7] — SSH 稳定性修复（真机暴露问题）
 
 ### 修复
