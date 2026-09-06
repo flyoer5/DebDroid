@@ -159,14 +159,24 @@ commons-compress 1.27.1 + xz（rootfs 解压）· minSdk 26 / targetSdk 28 / com
 ### 3.5 SSH（SshManager）
 
 - 配置生成（proot runOnce 内写）：
-  - `/etc/ssh/sshd_config`：Port、ListenAddress（仅局域网=`<手机IP>`；全部=`0.0.0.0`）、
-    PermitRootLogin=yes、PasswordAuthentication=开关、PubkeyAuthentication=开关、
-    AuthorizedKeysFile、PermitEmptyPasswords=no
+  - `/etc/ssh/sshd_config`：由纯函数 `SshdConfig.render(port, listenAddress)` 生成
+    （单测覆盖，FR-Q1）——基础项 Port、ListenAddress（仅局域网=`<手机IP>`；全部=`0.0.0.0`）、
+    PermitRootLogin=yes、PasswordAuthentication、PubkeyAuthentication、HostKey、Subsystem；
+    **v2.1.7 稳定性加固**：`MaxStartups 100:30:200`（未认证槽 10→200，客户端重试堆积不再
+    锁死新连接）、`LoginGraceTime 20`（死连接 120s→20s 回收，风暴快速自愈）、`UseDNS no`
+    （proot 内 resolv 异常不拖住 accept）、`TCPKeepAlive` + `ClientAlive*`（僵死会话回收）
   - `~/.ssh/authorized_keys`（公钥多行写入）
 - 启动：`startBlocking` → runOnce 起 `sshd`；**返回 String? 失败原因**（真实 stderr：端口占用/配置错误，FR-H2）
 - 停止：`stopBlocking` → kill sshd → **等待进程退出 ≤3s**（destroyForcibly 异步，立即重启会
   "address already in use"，v1.0.25 教训）
-- 竞态：switch/start/stop 按钮 busy 态禁用；内部 `isBusy` 标志，快速连点不并发
+- **自愈看门狗（FR-H4，v2.1.7）**：sshd 启动成功后武装；每 30s 向监听地址发 TCP 连接读
+  banner（健康 sshd 立即回 "SSH-2.0-…"，与真实客户端一致）。进程退出 → 立即自动重启；
+  进程存活但连续 3 次探测无响应（约 90s）判定假死 → 自动重启。重启走既有 stop+start
+  （端口释放 + proot pkill 兜底），成功后重新武装。节流：两次自动重启 ≥90s；连续自动重启
+  >3 次仍失败则停止 sshd 并如实显示"已停止"（计数健康归零、手动启停归零）。仅局域网监听
+  且拿不到本机 IP（WiFi 断）时跳过探测，避免误判。
+- 竞态：switch/start/stop 按钮 busy 态禁用；内部 `isBusy` 标志，快速连点不并发；看门狗与
+  手动启停通过 status==Running 门 + watchdogJob cancel 协同，不叠加
 - 状态机：`IDLE → INSTALLING → RUNNING ⇄ STOPPING → FAILED(reason)`；安装失败回滚开关为 off
 - 预装：rootfs 构建期预装 openssh-server（镜像内，FR-H1 即开即用）
 
