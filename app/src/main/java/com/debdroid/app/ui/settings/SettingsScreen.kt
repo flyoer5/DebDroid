@@ -99,8 +99,12 @@ fun SettingsScreen(
         scope.launch {
             busy = true
             try {
-                com.debdroid.app.DebDroidApp.instance.sshManager.startBlocking(after)
-                    ?.let { toast = "SSH 重启失败: $it" }
+                // v2.1.13：startBlocking 在 IO 线程执行（内部 stop 含 runOnce pkill ~秒级）——
+                // 此前直接跑在 Main 协程，重启期间 UI 冻结数秒、有 ANR 风险（真机 UI 走查暴露）。
+                val err = withContext(Dispatchers.IO) {
+                    com.debdroid.app.DebDroidApp.instance.sshManager.startBlocking(after)
+                }
+                err?.let { toast = "SSH 重启失败: $it" }
             } finally {
                 busy = false
             }
