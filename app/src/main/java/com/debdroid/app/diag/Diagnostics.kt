@@ -46,7 +46,9 @@ object Diagnostics {
         val rootfs = rootfsInstaller.rootfsDir()
         appendLine("rootfs: ${if (rootfsInstaller.isInstalled()) "已安装" else "未安装"} 目录存在=${rootfs.exists()}")
         if (rootfs.exists()) {
-            appendLine("rootfs 占用: ${FsOps.humanSize(rootfs.length())} (${rootfs.length()} bytes)")
+            // v2.1.9：递归统计，此前 rootfs.length() 只取顶层目录项(恒 4K)
+            val size = runCatching { FsOps.dirSize(rootfs) }.getOrDefault(rootfs.length())
+            appendLine("rootfs 占用: ${FsOps.humanSize(size)} ($size bytes)")
         }
         val proot = File(File(rootfsInstaller.context.filesDir, "opt/proot"), "bin/proot")
         appendLine("proot 运行时: ${proot.exists()}")

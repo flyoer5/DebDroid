@@ -84,6 +84,29 @@ object FsOps {
         else -> String.format(Locale.ROOT, "%.1fG", bytes / 1024.0 / 1024.0 / 1024.0)
     }
 
+    /**
+     * 目录递归磁盘占用（含目录项自身，与 du 语义接近）。
+     * 迭代实现避免深目录栈溢出；不跟随符号链接（防环/双计）；子目录不可读时跳过该枝。
+     * v2.1.9：诊断页此前误用顶层目录自身 length()（恒 4K），真机暴露。
+     */
+    fun dirSize(dir: File): Long {
+        var total = 0L
+        val stack = ArrayDeque<File>()
+        stack.add(dir)
+        while (stack.isNotEmpty()) {
+            val f = stack.removeLast()
+            if (java.nio.file.Files.isSymbolicLink(f.toPath())) continue // 链接不计，防环
+            if (f.isDirectory) {
+                total += f.length() // 目录项自身(约 4K/个)
+                val children = runCatching { f.listFiles() }.getOrNull() ?: continue
+                for (c in children) stack.add(c)
+            } else {
+                total += f.length()
+            }
+        }
+        return total
+    }
+
     /** 递归复制（IO 线程调用）。 */
     fun copyRecursive(src: File, dst: File) {
         if (src.isDirectory) {

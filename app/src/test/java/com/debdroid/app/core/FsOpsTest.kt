@@ -1,5 +1,6 @@
 package com.debdroid.app.core
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -57,5 +58,40 @@ class FsOpsTest {
     @Test
     fun `empty list sorts safely`() {
         assertTrue(FsOps.sort(emptyList(), FsOps.SortBy.NAME, false).isEmpty())
+    }
+
+    @Test
+    fun `dirSize sums nested files and dirs but skips symlinks`() {
+        val root = java.nio.file.Files.createTempDirectory("dd-dirsize").toFile()
+        try {
+            File(root, "a.txt").writeText("12345") // 5B
+            File(root, "sub").mkdirs()
+            File(root, "sub/b.bin").writeBytes(ByteArray(1000)) // 1000B
+            File(root, "sub/deep").mkdirs()
+            File(root, "sub/deep/c.txt").writeText("ok") // 2B
+            // 符号链接：不计入（防环/双计）
+            runCatching {
+                java.nio.file.Files.createSymbolicLink(
+                    java.nio.file.Paths.get(root.path, "loop"), java.nio.file.Paths.get(root.path, "sub")
+                )
+            }
+            val size = FsOps.dirSize(root)
+            assertTrue("got $size", size >= 1007) // 文件合计
+            assertTrue("got $size", size < 1007 + 4096 * 8) // 目录项自身计入但受限
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `dirSize of file or missing dir is safe`() {
+        val tmp = java.nio.file.Files.createTempFile("dd-file", ".txt").toFile()
+        try {
+            tmp.writeText("hi")
+            assertEquals(2L, FsOps.dirSize(tmp)) // 非目录：按单文件统计
+        } finally {
+            tmp.delete()
+        }
+        assertEquals(0L, FsOps.dirSize(File("/nonexistent-dd-dir-xyz")))
     }
 }

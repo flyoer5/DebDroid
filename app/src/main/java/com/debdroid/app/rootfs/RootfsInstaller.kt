@@ -104,6 +104,32 @@ class RootfsInstaller(val context: Context) {
         // resolv.conf：应用私有文件，由 ProotLauncher 绑定进 rootfs
         val resolv = File(context.filesDir, "resolv.conf")
         resolv.writeText(settings.customDns.ifBlank { "nameserver 8.8.8.8\nnameserver 223.5.5.5\n" })
+
+        // v2.1.9：安装/配置即让 guest /etc/localtime 跟随系统时区（幂等，失败静默——UTC 兜底）
+        runCatching { syncGuestTimezone() }
+    }
+
+    /**
+     * 让 guest /etc/localtime 跟随 Android 系统时区（v2.1.9，幂等）。
+     * 真机暴露：rootfs 恒为 Etc/UTC，终端 date/服务日志与本地差 8 小时。
+     * zoneinfo 无对应条目（自定义时区）时保持现状不报错。
+     * 磁盘操作；调用方保证 IO 线程（DebDroidApp.onCreate / configure）。
+     * @return true=本次已改写
+     */
+    fun syncGuestTimezone(): Boolean {
+        val androidId = runCatching { java.util.TimeZone.getDefault().id }.getOrNull() ?: return false
+        val target = timezoneTarget(File(rootfsDir(), "usr/share/zoneinfo"), androidId) ?: return false
+        val localtime = File(rootfsDir(), "etc/localtime")
+        return runCatching {
+            if (localtime.exists() || java.nio.file.Files.isSymbolicLink(localtime.toPath())) {
+                if (!localtime.delete()) return@runCatching false
+            }
+            // 链接内容须为 guest 视角：rootfs 被 proot 映射为 /，故写 "/usr/share/zoneinfo/<id>"
+            java.nio.file.Files.createSymbolicLink(
+                localtime.toPath(), java.nio.file.Paths.get("/usr/share/zoneinfo/$androidId")
+            )
+            true
+        }.getOrDefault(false)
     }
 
     /** 恢复出厂：删除 rootfs（FR-C2）。调用前需先停 SSH、关全部会话。 */
@@ -122,5 +148,20 @@ class RootfsInstaller(val context: Context) {
         /** 中文环境首次默认镜像（FR-W4）。tuna 实测对部分网络 403 不可靠（真机调试定位），改阿里云。 */
         fun defaultMirrorForLocale(locale: java.util.Locale = java.util.Locale.getDefault()): AptMirror =
             if (locale.language.startsWith("zh")) AptMirror.ALIYUN else AptMirror.OFFICIAL
+
+        /**
+         * 校验 Android 时区 id 并返回 zoneinfo 内对应条目（纯函数，可单测）。
+         * Android 与 Debian 共用 IANA tz 库，id（Asia/Shanghai 等）直接对应 zoneinfo 路径。
+         * @return zoneinfo 内时区文件；id 非法/本地缺条目返回 null（保持 UTC）
+         */
+        fun timezoneTarget(zoneinfoDir: File, androidZoneId: String): File? {
+            val id = androidZoneId.trim().trimStart('/')
+            if (id.isEmpty()) return null
+            if (id.startsWith("..") || id.contains("../") || id.endsWith("/")) return null
+            if (!id.all { it.isLetterOrDigit() || it == '/' || it == '_' || it == '+' || it == '-' }) return null
+            val f = File(zoneinfoDir, id)
+            if (!f.isFile || java.nio.file.Files.isSymbolicLink(f.toPath())) return null
+            return f
+        }
     }
 }
