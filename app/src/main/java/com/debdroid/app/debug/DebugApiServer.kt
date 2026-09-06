@@ -280,11 +280,10 @@ class DebugApiServer(
      * 读取请求体。必须用 NanoHTTPD 的 parseBody——其内部预读缓冲会消费 body，
      * 直接读 session.inputStream 会读到空/阻塞（GET 无 body 不受影响，POST/PUT 全挂）。
      */
-    private fun readBody(session: IHTTPSession): String {
-        val files = HashMap<String, String>()
-        session.parseBody(files)
-        return files["postData"] ?: ""
-    }
+    private fun readBody(session: IHTTPSession): String =
+        // v2.1.10：NanoHTTPD parseBody 的 postData 按 ASCII 解码，中文全变 U+FFFD
+        // （真机暴露：files/write 中文内容写坏）——改为原始字节 UTF-8 解码（HttpBody）
+        HttpBody.readUtf8(session)
 
     private fun settingsSnapshot(): AppSettings = runBlocking { settingsRepository.settings.first() }
 
