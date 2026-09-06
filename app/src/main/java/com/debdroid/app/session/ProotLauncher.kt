@@ -171,7 +171,11 @@ class ProotLauncher(private val context: Context, private val settings: AppSetti
         val cmdArgs = args.subList(0, envIndex).toMutableList()
         cmdArgs += listOf("/usr/bin/env", "-i")
         cmdArgs += args.subList(envIndex + 2, args.size - 3) // env 赋值段
-        cmdArgs += listOf("/bin/bash", "-c", command)
+        // 命令用 guest timeout 包一层：本方法超时 destroyForcibly 是 SIGKILL，
+        // proot 的 --kill-on-exit 收不到信号、guest 后代（apt-get 等）会残留占锁
+        // （真机暴露：断连/超时的 apt-get 占 /var/lib/apt/lists/lock 直至手动 kill）。
+        // guest timeout 独立计时，到点 SIGTERM→5s 后 SIGKILL 整棵命令树，锁自动释放。
+        cmdArgs += listOf("/usr/bin/timeout", "--kill-after=5s", "${timeoutSeconds}s", "/bin/bash", "-c", command)
 
         val pb = ProcessBuilder(cmdArgs)
         pb.redirectErrorStream(true)
@@ -185,7 +189,14 @@ class ProotLauncher(private val context: Context, private val settings: AppSetti
         val output = StringBuilder()
         val reader = process.inputStream.bufferedReader()
         val readerThread = Thread {
-            reader.forEachLine { line -> synchronized(output) { output.appendLine(line) } }
+            try {
+                reader.forEachLine { line -> synchronized(output) { output.appendLine(line) } }
+            } catch (_: java.io.IOException) {
+                // 子进程被杀/管道异常关闭时 read 可能抛 InterruptedIOException 等。
+                // 绝不能冒泡到线程顶：Thread 未捕获异常默认终止整个 app
+                // （真机复现 v2.1.6/v2.1.7：kill 运行中的 runOnce 子进程 → FATAL crash，
+                //   ProotLauncher.runOnce$lambda$1 InterruptedIOException）。
+            }
         }
         readerThread.isDaemon = true
         readerThread.start()
