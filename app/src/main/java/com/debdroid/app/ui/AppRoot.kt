@@ -91,6 +91,19 @@ fun AppRoot(initialRoute: String? = null) {
         }
     }
 
+    // v2.1.17：运行中最后一个会话因进程退出清空（用户输 exit/Ctrl+D、共享 tmux 销毁）
+    // 时自动补新会话——Termux 同款语义。真机暴露：此前清空后终端区空白无操作入口。
+    // 仅进程退出路径置位（lastSessionDied）；手动关闭/恢复出厂不触发，且冷启动
+    // keepRestore=false 的用户不受影响（标志只在运行中置位）。
+    LaunchedEffect(sessions.size) {
+        if (sessions.isEmpty() && screen == Screen.TERMINAL &&
+            app.rootfsInstaller.isInstalled() && app.sessionManager.lastSessionDied.value
+        ) {
+            app.sessionManager.clearLastSessionDied()
+            startFirstSession()
+        }
+    }
+
     // SSH 随会话自启（FR-H1）：首帧 LaunchedEffect 用默认设置（sshEnabled 默认 false，
     // DataStore 未加载完）建会话时可能错过自启；设置加载完成后补启动。
     // 不依赖 sessions（冷启动时会话建立比设置加载慢，依赖会导致竞态错过）；幂等（isRunning 检查）。

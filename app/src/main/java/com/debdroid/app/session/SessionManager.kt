@@ -33,6 +33,15 @@ class SessionManager(
     private val _sessions = MutableStateFlow<List<TerminalSession>>(emptyList())
     val sessions: StateFlow<List<TerminalSession>> = _sessions.asStateFlow()
 
+    /** v2.1.17：末会话因进程退出而清空（非手动关闭/恢复出厂）——UI 据此自动补新会话。 */
+    private val _lastSessionDied = MutableStateFlow(false)
+    val lastSessionDied: StateFlow<Boolean> = _lastSessionDied.asStateFlow()
+
+    /** v2.1.17：UI 消费自动补建意图后复位。 */
+    fun clearLastSessionDied() {
+        _lastSessionDied.value = false
+    }
+
     /** 当前终端屏展示的会话下标。 */
     val activeIndex = MutableStateFlow(0)
 
@@ -89,6 +98,7 @@ class SessionManager(
                 if (activeIndex.value >= _sessions.value.size) {
                     activeIndex.value = _sessions.value.size - 1
                 }
+                _lastSessionDied.value = false
             }
             // 会话就绪后按设置自启 SSH（FR-H1 顺带路径）
             if (settings.sshEnabled && settings.sshAutostart && !sshManager.isRunning()) {
@@ -149,6 +159,12 @@ class SessionManager(
         _sessions.value = _sessions.value.filter { it !== finishedSession }
         if (activeIndex.value >= _sessions.value.size && _sessions.value.isNotEmpty()) {
             activeIndex.value = _sessions.value.size - 1
+        }
+        // v2.1.17：最后一个会话因进程退出而清空（用户输 exit/Ctrl+D 或共享 tmux 销毁）——
+        // 通知 UI 自动补新会话。真机暴露：此前清空后终端区空白无任何操作入口。
+        // 仅此路径置位：用户手动关闭（closeSession）与恢复出厂（closeAll）不触发。
+        if (_sessions.value.isEmpty()) {
+            _lastSessionDied.value = true
         }
     }
 
