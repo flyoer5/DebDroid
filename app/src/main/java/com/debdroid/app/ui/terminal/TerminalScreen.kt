@@ -292,6 +292,7 @@ fun TerminalScreen(
                             }
                         },
                         update = { view ->
+                            android.util.Log.d("DD-TRACE", "AV-update sessions=${sessions.size} activeIdx=$activeIndex active=${activeSession != null} sameAsAttached=${view.mTermSession === activeSession}")
                             // 只在实际变化时触碰昂贵属性，重组不得拖慢按键回显
                             if (held.fontSize != settings.fontSize) {
                                 held.fontSize = settings.fontSize

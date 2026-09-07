@@ -104,6 +104,7 @@ val REPEATABLE_KEYS: Set<ExtraKey> = setOf(
 
 /** 把按键发送到终端视图。 */
 fun performExtraKey(view: TerminalView?, key: ExtraKey, state: ExtraKeysState) {
+    android.util.Log.d("DD-TRACE", "performExtraKey key=$key view=${view != null} mTermSession=${view?.mTermSession != null} emulator=${view?.mTermSession?.emulator != null} shellPid=${view?.mTermSession?.shellPid}")
     view ?: return
     when (key) {
         ExtraKey.Esc -> view.inputCodePoint(27, false, false)
