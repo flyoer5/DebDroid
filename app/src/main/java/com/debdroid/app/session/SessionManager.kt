@@ -107,6 +107,9 @@ class SessionManager(
                 }
                 _lastSessionDied.value = false
             }
+            // v2.1.21：会话生命周期入诊断环形缓冲——此前 /api/logs 只捕获 TerminalSessionClient
+            // 回调，健康运行一小时也近乎为空，诊断端点形同虚设（真机暴露）。
+            logLine("[session-created] name=${session.mSessionName} handle=${session.mHandle.takeLast(8)} total=${_sessions.value.size}")
             // 会话就绪后按设置自启 SSH（FR-H1 顺带路径）
             if (settings.sshEnabled && settings.sshAutostart && !sshManager.isRunning()) {
                 sshManager.startAsync(settings)
@@ -119,6 +122,7 @@ class SessionManager(
     fun closeSession(session: TerminalSession) {
         // v2.1.18：先登记手动关闭，onSessionFinished 不再置 lastSessionDied。
         manualCloses.add(session)
+        logLine("[session-closed] name=${session.mSessionName} manual=true remaining=${_sessions.value.size - 1}")
         if (session.isRunning) {
             runCatching {
                 val ctrlC = "\u0003".toByteArray()
