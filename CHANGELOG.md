@@ -2,6 +2,17 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.19] — tmux 保持模式落地 shell（detach/exit 不再瞬死）
+
+### 改进
+
+- **tmuxAttach 开启时，detach（Ctrl+B d）与退出 main 都让会话直接消亡**——裸
+  `tmux new -A -s main` 包装下 client 退出即 proot 退出；配合 v2.1.17 重生机制还会
+  立刻 re-attach 回 main，detach 完全无效，用户永远无法脱离 tmux（真机验证暴露）。
+- 改为 Termux 式落地 shell：`tmux new -A -s main; exec /bin/bash --login`——
+  detach/退出 main 后落到普通 bash（会话存活）；exit bash 才会话终结（重生机制
+  兜底再进 tmux）。非默认启动命令与 tmuxAttach=false 路径不变。
+
 ## [2.1.18] — 补建会话防误触与防连环重生
 
 ### 修复

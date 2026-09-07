@@ -122,8 +122,13 @@ class ProotLauncher(private val context: Context, private val settings: AppSetti
             args += listOf("-b", "${resolvFile().path}:/etc/resolv.conf")
         }
         val defaultStartup = "/bin/bash --login"
+        // v2.1.19：tmux 保持模式改为 Termux 式落地 shell——detach/退出 main 后落到
+        // 普通 bash 而非会话即死。此前裸 `tmux new -A -s main`：Ctrl+B d 或 exit 都让
+        // client 退出→sh -c 结束→proot 退出→会话消亡（v2.1.17 的重生机制还会立刻
+        // re-attach 回 main——detach 完全无效，真机验证暴露）。
         val startup = settings.startupCommand.trim().ifBlank { defaultStartup }.let {
-            if (it == defaultStartup && settings.tmuxAttach && hasTmux()) "tmux new -A -s main" else it
+            if (it == defaultStartup && settings.tmuxAttach && hasTmux())
+                "tmux new -A -s main; exec /bin/bash --login" else it
         }
         args += listOf(
             "/usr/bin/env", "-i",
