@@ -2,6 +2,22 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.16] — 修复第二会话"干净消失"（tmux ACL 跨 proot 拒绝）
+
+### 修复
+
+- **新建第二个会话并选中后，原会话/新会话在数十秒内 exit 0"干净消失"（真机多会话
+  走查暴露，v2.1.14 诊断日志定位）**：死亡会话的 tmux 客户端全部以 `access not
+  allowed` + exit 0 退出。
+- 根因：tmux 3.3+ 的 server-access ACL。proot -0 伪造 getuid=root，tmux server 自认
+  owner uid=0；客户端 connect 时 SO_PEERCRED 上报**真实 app uid**。首会话客户端是
+  server 创建者（免检）可连；后续任何 proot 的客户端（第二会话/runOnce 诊断）都被
+  拒绝——`tmux new -A -s main` 秒退 → proot --kill-on-exit → 会话从列表消失。
+- 修复（真机已验证）：`RootfsInstaller.applyTmuxAcl()` 于 configure 幂等执行——
+  /etc/passwd 增加 `ddapp` 条目映射真实 uid，/root/.tmux.conf 写入
+  `server-access -a ddapp`（server 启动时把真实 uid 加入允许名单）。写入后跨
+  proot `tmux ls` 立即可用，多会话不再级联死亡。
+
 ## [2.1.15] — 修复多会话级联死亡（fd 双重关闭竞态）
 
 ### 修复

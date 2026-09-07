@@ -99,8 +99,44 @@ class RootfsInstaller(val context: Context) {
     fun configure(settings: AppSettings) {
         applyMirror(settings)
         applyDns(settings)
+        // v2.1.16：跨 proot tmux 连接授权（server-access ACL，见 applyTmuxAcl）
+        applyTmuxAcl()
         // v2.1.9：安装/配置即让 guest /etc/localtime 跟随系统时区（幂等，失败静默——UTC 兜底）
         runCatching { syncGuestTimezone() }
+    }
+
+    /**
+     * v2.1.16：tmux 3.3+ server-access ACL 跨 proot 授权（幂等，真机多会话死亡定位）。
+     *
+     * 问题：proot -0 把 getuid 伪造成 root，tmux server 自认 owner=0；而客户端连接时
+     * SO_PEERCRED 报真实 uid（app uid，如 10259）。首会话客户端是 server 的创建者
+     * （fork 而来，免 ACL 检查）可以连；**任何后续 proot 的客户端（第二终端会话、
+     * runOnce 诊断、SSH 登录外的本机调用）都会被 "access not allowed" 拒绝并以
+     * exit 0 退出**——表现为第二会话创建后数十秒内"干净消失"（真机+诊断日志定位）。
+     *
+     * 修复：/etc/passwd 增加 ddapp 条目映射真实 uid，并在 /root/.tmux.conf 写入
+     * `server-access -a ddapp`（server 启动时执行），把真实 uid 加进允许名单。
+     * 已在真机验证：写入后跨 proot `tmux ls` 立即可用。
+     */
+    fun applyTmuxAcl() {
+        if (!isInstalled()) return
+        runCatching {
+            val uid = android.os.Process.myUid()
+            val passwd = File(rootfsDir(), "etc/passwd")
+            // uid 可能因重装变化：先清掉旧 ddapp 行再追加当前 uid
+            val lines = if (passwd.exists()) passwd.readLines() else emptyList()
+            val kept = lines.filterNot { it.startsWith("ddapp:") }
+            if (kept.size != lines.size || kept.none { it.startsWith("ddapp:") }) {
+                passwd.writeText((kept + "ddapp:x:$uid:$uid:DebDroid app uid:/:/bin/sh").joinToString("\n", postfix = "\n"))
+            }
+            val tmuxConf = File(rootfsDir(), "root/.tmux.conf")
+            val confLine = "server-access -a ddapp"
+            val existing = if (tmuxConf.exists()) tmuxConf.readLines() else emptyList()
+            if (existing.none { it.trim() == confLine }) {
+                tmuxConf.parentFile?.mkdirs()
+                tmuxConf.writeText(((existing.filterNot { it.trim().startsWith("server-access ") }) + confLine).joinToString("\n", postfix = "\n"))
+            }
+        }
     }
 
     /**
