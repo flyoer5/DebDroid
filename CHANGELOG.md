@@ -2,6 +2,16 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.14] — 会话退出诊断补强
+
+### 变更
+
+- **多会话偶发死亡零日志（真机走查暴露，定位中）**：第二会话在选中/启动后数秒内
+  偶发消失（会话列表回落、无崩溃、无 transcript、无任何日志），机制未定位。
+- 本版先补诊断：`onSessionFinished` 恒记录（名称 / handle / 退出码 / transcript 尾部
+  或 `<blank>`）。退出码语义：负值=信号（-9=SIGKILL、-1=SIGHUP）、正值=exit code，
+  下一轮复现即可锁定杀手；原实现只记非空 transcript，空白会话死亡完全无痕。
+
 ## [2.1.13] — SSH 设置变更重启不再冻结 UI
 
 ### 修复

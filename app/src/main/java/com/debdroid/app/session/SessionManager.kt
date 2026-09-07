@@ -134,14 +134,16 @@ class SessionManager(
     override fun onTitleChanged(changedSession: TerminalSession) {}
 
     override fun onSessionFinished(finishedSession: TerminalSession) {
-        // 记录 transcript 尾部便于从 logcat 诊断 proot 失败原因（FR-S5 辅助）
+        // v2.1.14：恒记录（多会话真机走查暴露：第二会话偶发死掉且零日志——原实现只记
+        // 非空 transcript，空白会话死亡完全无痕）。退出码定位杀手：waitFor 对信号返回负值
+        // （-9=SIGKILL/-1=SIGHUP），>0=exit code。pid 在 cleanupResources 后变 -1，先取。
         runCatching {
+            val status = finishedSession.getExitStatus()
             val text = finishedSession.emulator?.mScreen?.getTranscriptText()
-            if (!text.isNullOrBlank()) {
-                val tail = text.takeLast(1200)
-                logLine("[session-finished] tail:\n" + tail)
-                Log.i(TAG, "session finished tail:\n" + tail)
-            }
+            val tail = if (text.isNullOrBlank()) "<blank>" else text.takeLast(800)
+            val msg = "[session-finished] name=${finishedSession.mSessionName} handle=${finishedSession.mHandle.takeLast(8)} exit=$status tail:\n$tail"
+            logLine(msg)
+            Log.i(TAG, msg)
         }
         runCatching { finishedSession.finishIfRunning() }
         _sessions.value = _sessions.value.filter { it !== finishedSession }
