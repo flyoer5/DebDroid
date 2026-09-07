@@ -121,6 +121,15 @@ class ProotLauncher(private val context: Context, private val settings: AppSetti
         if (resolvFile().exists()) {
             args += listOf("-b", "${resolvFile().path}:/etc/resolv.conf")
         }
+        // v2.1.23：绑定宿主外部存储进 guest（/sdcard 惯例路径，避免与 rootfs 内
+        // /storage 等目录语义混淆）。此前 guest 完全看不到 /storage/emulated/0——
+        // 文件管理器"复制到对侧"复制过去的文件在终端里找不到（体验断链，真机暴露：
+        // UI 侧 ls 可见、guest 侧 No such file or directory）。
+        // 目录存在（有外部存储权限时）才绑定；无权限/目录缺失时静默跳过（会话照常）。
+        val externalStorage = android.os.Environment.getExternalStorageDirectory()
+        if (externalStorage.isDirectory) {
+            args += listOf("-b", "${externalStorage.path}:/sdcard")
+        }
         val defaultStartup = "/bin/bash --login"
         // v2.1.19：tmux 保持模式改为 Termux 式落地 shell——detach/退出 main 后落到
         // 普通 bash 而非会话即死。此前裸 `tmux new -A -s main`：Ctrl+B d 或 exit 都让

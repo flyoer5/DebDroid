@@ -2,6 +2,17 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.23] — guest 可访问宿主外部存储（/sdcard）
+
+### 改进
+
+- **文件管理器"复制到对侧"把文件复制到宿主 /storage/emulated/0 后，终端（guest）
+  完全看不到**：proot 绑定表不含外部存储，guest 无 /storage（真机暴露：UI 侧 ls
+  可见、guest 侧 No such file or directory，体验断链）。
+- 修复：buildArgs 条件绑定 `-b /storage/emulated/0:/sdcard`（目录存在才绑，无权限
+  静默跳过）。终端与 runOnce 命令均可经 /sdcard 读写宿主共享存储；文件管理器
+  "对侧"复制的文件终端立即可见。guest 侧用 /sdcard 惯例路径（Termux 同款）。
+
 ## [2.1.22] — 目录型符号链接在文件管理器中可正常导航
 
 ### 修复
