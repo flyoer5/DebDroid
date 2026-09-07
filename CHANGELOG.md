@@ -2,6 +2,17 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.25] — authorized_keys 写入竞态兜底
+
+### 修复
+
+- **冷启动首启 SSH 自启动链曾中断**（真机 19:24:36 崩溃记录：authorized_keys
+  FileOutputStream open EACCES 一次性竞态）。异常冒泡使 applyConfigBlocking 失败、
+  sshd 未启动，要等下一次 newSession 才补启，期间 SSH 缺位。
+- 修复：宿主侧直写重试 2 次（250ms 间隔）；仍失败改走 guest 侧 runOnce 写入
+  （base64 + chmod 600），公钥配置不丢、启动链不中断。keys 清空分支的 delete
+  同样不再抛异常。
+
 ## [2.1.24] — files/read 二进制显式契约
 
 ### 修复

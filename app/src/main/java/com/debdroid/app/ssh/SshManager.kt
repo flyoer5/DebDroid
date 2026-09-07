@@ -108,13 +108,34 @@ class SshManager(
         val keys = settings.sshAuthorizedKeys.trim()
         val authorizedKeys = File(sshDir, "authorized_keys")
         if (keys.isEmpty()) {
-            authorizedKeys.delete()
-        } else {
             runCatching { authorizedKeys.delete() }
-            authorizedKeys.writeText(keys + "\n")
-            authorizedKeys.setReadable(true, true)
-            authorizedKeys.setWritable(false, false)
-            authorizedKeys.setExecutable(false, false)
+        } else {
+            // v2.1.25：authorized_keys 写入竞态兜底。冷启动首启曾出现一次性 EACCES
+            // （真机 19:24:36 崩溃记录：FileOutputStream open EACCES），异常冒泡会
+            // 中断 startAsync 的 sshd 启动链（下次 newSession 才补启，期间 SSH 缺位）。
+            // 契约：宿主侧直写重试 2 次；仍失败改走 guest 侧（runOnce）落盘，
+            // 公钥配置不丢、启动链不中断。
+            var written = false
+            var lastErr: Throwable? = null
+            repeat(2) {
+                runCatching {
+                    runCatching { authorizedKeys.delete() }
+                    authorizedKeys.writeText(keys + "\n")
+                    written = true
+                }.onFailure { e -> lastErr = e; Thread.sleep(250) }
+            }
+            if (!written) {
+                val payload = Base64.encodeToString((keys + "\n").toByteArray(), Base64.NO_WRAP)
+                ProotLauncher(context, settings).runOnce(
+                    "echo $payload | base64 -d > /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys",
+                    timeoutSeconds = 30,
+                )
+                android.util.Log.w("DebDroid", "authorized_keys host write failed; guest fallback used", lastErr)
+            } else {
+                authorizedKeys.setReadable(true, true)
+                authorizedKeys.setWritable(false, false)
+                authorizedKeys.setExecutable(false, false)
+            }
         }
 
         File(rootfs, "run/sshd").mkdirs()
