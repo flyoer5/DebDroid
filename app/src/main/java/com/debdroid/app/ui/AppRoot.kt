@@ -100,7 +100,11 @@ fun AppRoot(initialRoute: String? = null) {
     // 损坏等），连续 5 次后停止自动补建（防无限循环），60s 稳定后计数自愈复位。
     var respawnStreak by remember { mutableStateOf(0) }
     var lastRespawnAt by remember { mutableStateOf(0L) }
-    LaunchedEffect(sessions.size) {
+    // v2.1.26：key 加 screen。此前只有 sessions.size——在 FILES/SETTINGS 屏期间会话
+    // 死光后切回 TERMINAL，sessions.size 仍为 0 不变 → LaunchedEffect 不重跑 → 不补建
+    // （真机复现：tmux server 崩溃双会话同死，回终端屏零响应，须冷启动才恢复）。
+    // key 含 screen 后，切回 TERMINAL 即触发补建检查；条件与连环上限/60s 自愈不变。
+    LaunchedEffect(sessions.size, screen) {
         if (sessions.isEmpty() && screen == Screen.TERMINAL &&
             app.rootfsInstaller.isInstalled() && app.sessionManager.lastSessionDied.value
         ) {

@@ -2,6 +2,18 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.26] — 切回终端屏时补建死亡会话
+
+### 修复
+
+- **会话全死 + 停留非终端屏 → 切回终端屏不自动补建**（真机复现：tmux server 长时
+  运行后 `exec: /bin/bash: Function not implemented` 崩溃，双会话同死 signal 9；
+  用户在文件管理器屏，切回终端屏零响应，须杀进程冷启动才恢复会话）。
+- 根因：自动补建的 LaunchedEffect key 只有 sessions.size——在 FILES/SETTINGS 屏
+  期间会话死光，切回 TERMINAL 时 sessions.size 仍为 0（key 未变）→ effect 不重跑。
+- 修复：key 增加 screen，切回终端屏即触发补建检查（连环上限 5 次 / 60s 自愈等
+  守卫全部保留）。
+
 ## [2.1.25] — authorized_keys 写入竞态兜底
 
 ### 修复
