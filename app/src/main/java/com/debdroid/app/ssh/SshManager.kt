@@ -116,7 +116,7 @@ class SshManager(
             // 契约：宿主侧直写重试 2 次；仍失败改走 guest 侧（runOnce）落盘，
             // 公钥配置不丢、启动链不中断。
             var written = false
-            var lastErr: Exception? = null
+            var lastErr: Throwable? = null
             repeat(2) {
                 runCatching {
                     runCatching { authorizedKeys.delete() }
