@@ -2,6 +2,16 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.21] — 会话生命周期入诊断日志
+
+### 改进
+
+- **/api/logs 诊断端点长期为空**：只捕获 TerminalSessionClient 回调，健康运行一小时
+  也近乎无内容，诊断价值形同虚设（真机暴露）。
+- 会话生命周期事件入环形缓冲：`[session-created]`（含 name/handle/total）、
+  `[session-closed]`（manual=true/remaining），与既有 `[session-finished]` 构成完整
+  生命周期链，配合 v2.1.14 的退出诊断可完整回溯会话历史。
+
 ## [2.1.20] — 调试 API files/write 二进制安全与显式契约
 
 ### 修复
