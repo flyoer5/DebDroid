@@ -2,6 +2,16 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.17] — 末会话退出后自动补新会话（消除空白卡死）
+
+### 修复
+
+- **用户输入 `exit`/Ctrl+D（或共享 tmux 会话销毁）后所有会话清空，终端区空白、
+  无任何操作入口**（真机复现：exit 后 sessions=0、屏幕空，仅能靠抽屉自救）。
+- 修复：`SessionManager.lastSessionDied` 标记"末会话因进程退出而清空"（仅此路径
+  置位，手动关闭/恢复出厂不触发），`AppRoot` 观察到清空即自动补建新会话
+  （Termux 同款语义）。新会话按当前设置启动（tmux 模式自动重建 main 服务）。
+
 ## [2.1.16] — 修复第二会话"干净消失"（tmux ACL 跨 proot 拒绝）
 
 ### 修复
