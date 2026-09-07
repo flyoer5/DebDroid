@@ -45,10 +45,21 @@ object FsOps {
         children.forEach { f ->
             runCatching {
                 val st = Os.lstat(f.path)
+                val isLink = (st.st_mode and OsConstants.S_IFMT) == OsConstants.S_IFLNK
+                // v2.1.22：目录型符号链接（rootfs 内大量存在，如 libncurses6→libtinfo6）此前
+                // isDir 恒 false——文件管理器把目录链接当文件显示（🔗 图标、排序靠后、点击走
+                // "打开方式"而非导航，真机暴露）。链接的目标若是目录，isDir 用 stat（跟随链接）
+                // 的结果；权限串仍按 lstat 的 'l' 前缀（isLink 优先）。
+                val isDir = if (isLink) {
+                    runCatching { Os.stat(f.path).st_mode and OsConstants.S_IFMT == OsConstants.S_IFDIR }
+                        .getOrDefault(false) // 悬空链接：按非目录处理
+                } else {
+                    (st.st_mode and OsConstants.S_IFMT) == OsConstants.S_IFDIR
+                }
                 out += FileInfo(
                     name = f.name,
-                    isDir = (st.st_mode and OsConstants.S_IFMT) == OsConstants.S_IFDIR,
-                    isLink = (st.st_mode and OsConstants.S_IFMT) == OsConstants.S_IFLNK,
+                    isDir = isDir,
+                    isLink = isLink,
                     size = st.st_size,
                     mtime = st.st_mtime,
                     mode = st.st_mode,

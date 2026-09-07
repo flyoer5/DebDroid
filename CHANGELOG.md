@@ -2,6 +2,18 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.22] — 目录型符号链接在文件管理器中可正常导航
+
+### 修复
+
+- **指向目录的符号链接被当普通文件**（rootfs 内大量存在：libncurses6→libtinfo6 等
+  Debian 替换包链接）：`listDir` 用 lstat，链接的 isDir 恒 false——文件管理器里目录
+  链接显示 🔗 文件图标、排序靠后、点击走"打开方式"而非进入目录（真机暴露：
+  /usr/share/doc 下 libncurses6 无法点开，guest 侧 ls 可达）。
+- 修复：链接目标的 isDir 用 stat（跟随链接）判定；权限串仍按 lstat（'l' 前缀保留，
+  isLink 标记不变）；悬空链接安全按非目录处理（stat 失败兜底）。
+- debug API files 列表同步受益（同一 listDir）。
+
 ## [2.1.21] — 会话生命周期入诊断日志
 
 ### 改进
