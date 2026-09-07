@@ -132,16 +132,22 @@ public final class TerminalSession extends TerminalOutput {
         new Thread("TermSessionInputReader[pid=" + mShellPid + "]") {
             @Override
             public void run() {
-                try (InputStream termIn = new FileInputStream(terminalFileDescriptorWrapped)) {
-                    final byte[] buffer = new byte[4096];
-                    while (true) {
+                // v2.1.15：禁止线程退出时关闭底层 fd（try-with-resources 的隐式 close）——
+                // fd 由 cleanupResources 的 JNI.close 统一关闭一次。此前 reader/writer/
+                // cleanup 三个关闭者竞态：线程晚到的 close 会关掉已被新会话复用的 fd 号，
+                // 杀死无辜会话的 pty（多会话级联死亡的根因，真机+诊断日志定位）。
+                InputStream termIn = new FileInputStream(terminalFileDescriptorWrapped);
+                final byte[] buffer = new byte[4096];
+                while (true) {
+                    try {
                         int read = termIn.read(buffer);
                         if (read == -1) return;
                         if (!mProcessToTerminalIOQueue.write(buffer, 0, read)) return;
                         mMainThreadHandler.sendEmptyMessage(MSG_NEW_INPUT);
+                    } catch (Exception e) {
+                        // Ignore, just shutting down.
+                        return;
                     }
-                } catch (Exception e) {
-                    // Ignore, just shutting down.
                 }
             }
         }.start();
@@ -149,15 +155,18 @@ public final class TerminalSession extends TerminalOutput {
         new Thread("TermSessionOutputWriter[pid=" + mShellPid + "]") {
             @Override
             public void run() {
+                // v2.1.15：同 reader——不 close 底层 fd（fd 生命周期归 cleanupResources）。
                 final byte[] buffer = new byte[4096];
-                try (FileOutputStream termOut = new FileOutputStream(terminalFileDescriptorWrapped)) {
-                    while (true) {
+                FileOutputStream termOut = new FileOutputStream(terminalFileDescriptorWrapped);
+                while (true) {
+                    try {
                         int bytesToWrite = mTerminalToProcessIOQueue.read(buffer, true);
                         if (bytesToWrite == -1) return;
                         termOut.write(buffer, 0, bytesToWrite);
+                    } catch (IOException e) {
+                        // Ignore.
+                        return;
                     }
-                } catch (IOException e) {
-                    // Ignore.
                 }
             }
         }.start();
@@ -244,13 +253,18 @@ public final class TerminalSession extends TerminalOutput {
     }
 
     /** Cleanup resources when the process exits. */
+    private boolean mCleanedUp = false;
+
     void cleanupResources(int exitStatus) {
+        // v2.1.15：幂等——fd 只允许关闭一次（双重 close 同样会命中被复用的 fd 号）。
         synchronized (this) {
+            if (mCleanedUp) return;
+            mCleanedUp = true;
             mShellPid = -1;
             mShellExitStatus = exitStatus;
         }
 
-        // Stop the reader and writer threads, and close the I/O streams
+        // Stop the reader and writer threads. fd 在此统一关闭一次（IO 线程不再关闭）。
         mTerminalToProcessIOQueue.close();
         mProcessToTerminalIOQueue.close();
         JNI.close(mTerminalFileDescriptor);

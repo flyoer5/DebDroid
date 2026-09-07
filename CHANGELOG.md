@@ -2,6 +2,19 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.15] — 修复多会话级联死亡（fd 双重关闭竞态）
+
+### 修复
+
+- **第二会话选中后，原会话在数秒~一分钟后"干净退出"（exit 0）消失，且可能级联**
+  （真机多会话走查 + v2.1.14 诊断日志定位：被杀会话 tmux client 全部 exit 0 =
+  pty master 被提前关闭→EOF）。
+- 根因：`TerminalSession` 的 pty master fd 存在三个关闭者（reader 线程
+  try-with-resources 隐式 close、writer 线程同、`cleanupResources` 的 `JNI.close`）。
+  线程晚到的 close 会关掉**已被新会话复用的 fd 号**，杀死无辜会话的终端。
+- 修复：fd 生命周期归 `cleanupResources` 独占——IO 线程退出不再关闭底层流，
+  cleanup 幂等（`mCleanedUp` 标记），全进程内每个 fd 恰好 close 一次。
+
 ## [2.1.14] — 会话退出诊断补强
 
 ### 变更
