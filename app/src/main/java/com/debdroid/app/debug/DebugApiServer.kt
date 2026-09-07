@@ -252,13 +252,24 @@ class DebugApiServer(
             method == "POST" && path == "/api/files/write" -> {
                 val obj = JSONObject(readBody(session))
                 val p = obj.optString("path").ifBlank { return json(400, JSONObject().put("error", "path required")) }
-                val content = obj.optString("content")
+                // v2.1.20：支持二进制安全写入。此前只认 content（文本），请求里只有
+                // contentBase64 时被静默忽略、写出空文件还返回 ok（真机暴露：
+                // md5=d41d8…空文件）。契约：contentBase64 优先于 content；两者皆缺 → 400。
+                val b64 = obj.optString("contentBase64")
+                val bytes: ByteArray? = if (b64.isNotBlank()) {
+                    runCatching { android.util.Base64.decode(b64, android.util.Base64.DEFAULT) }
+                        .getOrElse { return json(400, JSONObject().put("error", "invalid contentBase64: ${it.message}")) }
+                } else if (obj.has("content")) {
+                    obj.optString("content").toByteArray(Charsets.UTF_8)
+                } else null
+                if (bytes == null) return json(400, JSONObject().put("error", "content or contentBase64 required"))
+                val append = obj.optBoolean("append", false)
                 runCatching {
                     val f = File(p)
                     f.parentFile?.mkdirs()
-                    f.writeText(content, Charsets.UTF_8)
+                    if (append) f.appendBytes(bytes) else f.writeBytes(bytes)
                 }.onFailure { return json(500, JSONObject().put("error", it.message)) }
-                json(200, JSONObject().put("ok", true))
+                json(200, JSONObject().put("ok", true).put("bytes", bytes.size))
             }
 
             // ---- SSH ----

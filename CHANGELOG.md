@@ -2,6 +2,16 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.20] — 调试 API files/write 二进制安全与显式契约
+
+### 修复
+
+- **files/write 只认文本 content，contentBase64 被静默忽略、写出空文件仍返回 ok**
+  （真机暴露：base64 写二进制 → md5=d41d8… 空文件）。
+- 修复：支持 `contentBase64`（解码后二进制安全写入，优先于 `content`）；
+  新增 `append` 布尔字段（默认覆盖）；`content`/`contentBase64` 均缺 → 400 显式报错
+  （不再静默写空）。成功响应附 `bytes` 实写字节数。
+
 ## [2.1.19] — tmux 保持模式落地 shell（detach/exit 不再瞬死）
 
 ### 改进
