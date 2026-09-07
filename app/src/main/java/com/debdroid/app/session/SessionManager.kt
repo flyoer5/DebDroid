@@ -42,6 +42,13 @@ class SessionManager(
         _lastSessionDied.value = false
     }
 
+    /**
+     * v2.1.18：手动关闭中的会话（closeSession 先登记再杀）——onSessionFinished
+     * 据此区分手动关闭与进程自然退出，避免"用户关掉最后一个会话仍被强行补建"
+     * （真机暴露：badge 关闭后 Session 5/6 连环重生）。
+     */
+    private val manualCloses = java.util.Collections.synchronizedSet(LinkedHashSet<TerminalSession>())
+
     /** 当前终端屏展示的会话下标。 */
     val activeIndex = MutableStateFlow(0)
 
@@ -110,12 +117,21 @@ class SessionManager(
 
     /** 关闭单个会话（FR-S2）：先送 Ctrl+C，再后台 finish。 */
     fun closeSession(session: TerminalSession) {
+        // v2.1.18：先登记手动关闭，onSessionFinished 不再置 lastSessionDied。
+        manualCloses.add(session)
         if (session.isRunning) {
             runCatching {
                 val ctrlC = "\u0003".toByteArray()
                 session.write(ctrlC, 0, ctrlC.size)
             }
             Thread { runCatching { session.finishIfRunning() } }.start()
+        } else {
+            // 已死的会话不会再来 onSessionFinished——直接清列表并清理登记。
+            _sessions.value = _sessions.value.filter { it !== session }
+            manualCloses.remove(session)
+            if (activeIndex.value >= _sessions.value.size && _sessions.value.isNotEmpty()) {
+                activeIndex.value = _sessions.value.size - 1
+            }
         }
     }
 
@@ -162,8 +178,10 @@ class SessionManager(
         }
         // v2.1.17：最后一个会话因进程退出而清空（用户输 exit/Ctrl+D 或共享 tmux 销毁）——
         // 通知 UI 自动补新会话。真机暴露：此前清空后终端区空白无任何操作入口。
-        // 仅此路径置位：用户手动关闭（closeSession）与恢复出厂（closeAll）不触发。
-        if (_sessions.value.isEmpty()) {
+        // v2.1.18：手动关闭的会话（badge/恢复出厂）不置位——尊重用户意图，
+        // 关掉最后一个会话后保持空列表（抽屉"新建会话"仍可用）。
+        val wasManualClose = manualCloses.remove(finishedSession)
+        if (_sessions.value.isEmpty() && !wasManualClose) {
             _lastSessionDied.value = true
         }
     }

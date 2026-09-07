@@ -95,11 +95,26 @@ fun AppRoot(initialRoute: String? = null) {
     // 时自动补新会话——Termux 同款语义。真机暴露：此前清空后终端区空白无操作入口。
     // 仅进程退出路径置位（lastSessionDied）；手动关闭/恢复出厂不触发，且冷启动
     // keepRestore=false 的用户不受影响（标志只在运行中置位）。
+    // v2.1.18：①1.5s 延迟——旧 tmux server 拆卸竞态会让补建会话秒死（真机 Session 5
+    // 即此），稍候再建可命中干净状态；②连环重生上限——补建会话若持续秒死（rootfs
+    // 损坏等），连续 5 次后停止自动补建（防无限循环），60s 稳定后计数自愈复位。
+    var respawnStreak by remember { mutableStateOf(0) }
+    var lastRespawnAt by remember { mutableStateOf(0L) }
     LaunchedEffect(sessions.size) {
         if (sessions.isEmpty() && screen == Screen.TERMINAL &&
             app.rootfsInstaller.isInstalled() && app.sessionManager.lastSessionDied.value
         ) {
+            val now = System.currentTimeMillis()
+            if (now - lastRespawnAt > 60_000) respawnStreak = 0
+            if (respawnStreak >= 5) {
+                Log.w("DebDroid", "auto-respawn stopped: streak=$respawnStreak (session keeps dying)")
+                app.sessionManager.clearLastSessionDied()
+                return@LaunchedEffect
+            }
+            delay(1500)
             app.sessionManager.clearLastSessionDied()
+            lastRespawnAt = System.currentTimeMillis()
+            respawnStreak += 1
             startFirstSession()
         }
     }
