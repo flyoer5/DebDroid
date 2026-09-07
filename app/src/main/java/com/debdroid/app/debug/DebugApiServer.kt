@@ -245,8 +245,22 @@ class DebugApiServer(
                 val f = File(p)
                 if (!f.exists() || !f.isFile) return json(404, JSONObject().put("error", "not a file: $p"))
                 if (f.length() > MAX_FILE_READ) return json(413, JSONObject().put("error", "file too large"))
-                val content = f.readText(Charsets.UTF_8)
-                json(200, JSONObject().put("path", f.path).put("content", content))
+                // v2.1.24：二进制检测。此前 readText(UTF_8) 对二进制静默产出乱码（真机
+                // 暴露：100 字节随机数据返回 93 字符含 U+FFFD）——200+损坏数据无任何警示。
+                // 现契约：默认仍返回文本 content（UTF-8 严格解码，损失即 415）；
+                // ?encoding=base64 返回 contentBase64（二进制安全，与 files/write 对称）。
+                val wantBase64 = q?.get("encoding") == "base64"
+                if (wantBase64) {
+                    val b64 = android.util.Base64.encodeToString(f.readBytes(), android.util.Base64.NO_WRAP)
+                    return json(200, JSONObject().put("path", f.path).put("contentBase64", b64))
+                }
+                val raw = f.readBytes()
+                val isProbablyText = raw.isEmpty() || runCatching {
+                    val dec = raw.toString(Charsets.UTF_8)
+                    dec.toByteArray(Charsets.UTF_8).size == raw.size
+                }.getOrDefault(false)
+                if (!isProbablyText) return json(415, JSONObject().put("error", "binary content; retry with ?encoding=base64"))
+                json(200, JSONObject().put("path", f.path).put("content", String(raw, Charsets.UTF_8)))
             }
 
             method == "POST" && path == "/api/files/write" -> {

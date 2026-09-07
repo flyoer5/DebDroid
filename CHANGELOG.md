@@ -2,6 +2,16 @@
 
 All notable changes to DebDroid. 版本与功能编号对应 docs/requirements.md 的 FR 编号。
 
+## [2.1.24] — files/read 二进制显式契约
+
+### 修复
+
+- **二进制文件经 files/read 返回 200 + 静默乱码**（真机暴露：100 字节随机数据返回
+  93 字符含 U+FFFD 替换符——损坏数据无任何警示）。
+- 修复：默认路径做 UTF-8 往返校验，非文本（解码有损）返回 415 并提示改用
+  `?encoding=base64`；新 base64 模式二进制安全（contentBase64，与 files/write 的
+  contentBase64 写入对称，闭环 v2.1.20 的二进制契约）。
+
 ## [2.1.23] — guest 可访问宿主外部存储（/sdcard）
 
 ### 改进
